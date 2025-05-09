@@ -32,8 +32,7 @@ std::vector<uint64_t> Timer::get_measurements(size_t n) {
   std::vector<uint64_t> measurements(n);
   volatile char *addr = (volatile char *)pattern[0].to_virt();
   for(size_t i = 0; i < n; i++) {
-    uint64_t measurement = measure(addr);
-    measurements.push_back(measurement);
+    measurements[i] = measure(addr);
   }
   return measurements;
 }
