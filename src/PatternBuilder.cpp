@@ -10,8 +10,7 @@
 const size_t MIN_NUM_BANKS = 1;
 const size_t VICTIM_ROWS = 5;
 
-PatternBuilder::PatternBuilder(Allocation allocation) {
-  this->allocation = allocation;
+PatternBuilder::PatternBuilder(Allocation &allocation) : allocation(allocation) {
   engine = std::mt19937();
   row_offset_dist = std::uniform_int_distribution<>(MIN_ROW_OFFSET, MAX_ROW_OFFSET);
   bank_offset_dist = std::uniform_int_distribution<>(0, DRAMConfig::get().banks() - 1);

@@ -26,7 +26,7 @@ class PatternBuilder {
     std::uniform_int_distribution<> agg_count_dist;
     bool address_valid(void *address);
   public:
-    PatternBuilder(Allocation allocation);
+    PatternBuilder(Allocation &allocation);
     std::vector<DRAMAddr> create();
     std::vector<DRAMAddr> create(size_t bank);
     std::vector<DRAMAddr> create(size_t bank, size_t num_aggressors_per_bank);
