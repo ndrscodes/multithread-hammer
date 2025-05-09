@@ -23,11 +23,12 @@ bool PatternBuilder::address_valid(void *address) {
 
 std::vector<DRAMAddr> PatternBuilder::create() {
   std::uniform_int_distribution<> bank_num_dist(MIN_NUM_BANKS, DRAMConfig::get().banks());
-  size_t aggressors = agg_count_dist(engine);
+  size_t single_aggressors = agg_count_dist(engine);
+  size_t double_aggressors = agg_count_dist(engine);
   PatternConfig config = {
-    .num_single_aggressors_per_bank = aggressors / 2,
+    .num_single_aggressors_per_bank = single_aggressors,
     .num_banks = (size_t)bank_num_dist(engine),
-    .num_double_aggressors_per_bank = aggressors / 2,
+    .num_double_aggressors_per_bank = double_aggressors,
     .allow_duplicates = get_bool(),
     .root_bank = (size_t)bank_offset_dist(engine)
   };
@@ -40,11 +41,11 @@ std::vector<DRAMAddr> PatternBuilder::create(size_t bank) {
 
 std::vector<DRAMAddr> PatternBuilder::create(size_t bank, size_t num_aggressors_per_bank) {
   PatternConfig config = {
-    .num_single_aggressors_per_bank = num_aggressors_per_bank / 2,
+    .num_single_aggressors_per_bank = num_aggressors_per_bank,
     .num_banks = 1,
-    .num_double_aggressors_per_bank = num_aggressors_per_bank / 2,
+    .num_double_aggressors_per_bank = 0,
     .allow_duplicates = get_bool(),
-    .root_bank = (size_t)bank_offset_dist(engine),
+    .root_bank = bank,
   };
   return create(config);
 }
