@@ -1,4 +1,4 @@
-
+#pragma once
 #include "DRAMAddr.hpp"
 #include <cstddef>
 enum init_pattern {

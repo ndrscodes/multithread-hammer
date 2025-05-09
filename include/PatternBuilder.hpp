@@ -1,3 +1,4 @@
+#pragma once
 #include "Allocation.hpp"
 #include "DRAMAddr.hpp"
 #include <random>

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <thread>
 #include <x86intrin.h>
+#include "Timer.hpp"
 
 HammerSuite::HammerSuite(PatternBuilder &builder) : builder(builder){}
 
@@ -24,9 +25,10 @@ size_t HammerSuite::remove_pattern(size_t id) {
 size_t HammerSuite::hammer(size_t iterations) {
   std::vector<std::thread> threads;
   std::barrier b(patterns.size());
+  Timer timer(builder);
   for(auto it = patterns.begin(); it != patterns.end(); it++) {
     size_t id = it->first;
-    threads.push_back(std::thread(&HammerSuite::hammer_fn, this, id, std::ref(it->second), iterations, std::ref(b)));
+    threads.push_back(std::thread(&HammerSuite::hammer_fn, this, id, std::ref(it->second), iterations, std::ref(b), std::ref(timer)));
   }
   for(auto &t : threads) {
     t.join();
@@ -40,7 +42,7 @@ size_t HammerSuite::hammer(size_t iterations) {
   return flips;
 }
 
-void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier) {
+void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, Timer &timer) {
   //this is likely faster than an std::vector because we can skip the size checks and allocation going on...
   //the processor is likely to cache this array so the lookup will be more or less instant
   size_t s = pattern.size();
@@ -52,6 +54,8 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
   iterations /= s;
 
   start_barrier.arrive_and_wait();
+  printf("starting pattern thread %lu.\n", id);
+  timer.wait_for_refresh();
   for(size_t i = 0; i < iterations; i++) {
     for(size_t j = 0; j < s; j++) {
       _mm_clflushopt((void *)virt_addrs[j]);

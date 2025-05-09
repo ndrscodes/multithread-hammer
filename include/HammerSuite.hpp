@@ -1,9 +1,11 @@
+#pragma once
 #include <barrier>
 #include <initializer_list>
 #include <map>
 #include <vector>
 #include "DRAMAddr.hpp"
 #include "PatternBuilder.hpp"
+#include "Timer.hpp"
 typedef std::vector<DRAMAddr> Pattern;
 typedef std::pair<size_t, std::vector<DRAMAddr>> PatternPair;
 
@@ -11,7 +13,7 @@ class HammerSuite {
 private:
   size_t current_pattern_id;
   std::map<size_t, Pattern> patterns;
-  void hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier);
+  void hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, Timer &timer);
   PatternBuilder &builder;
 public:
   HammerSuite(PatternBuilder &builder);
