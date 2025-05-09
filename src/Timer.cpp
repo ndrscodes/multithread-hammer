@@ -56,7 +56,7 @@ uint64_t Timer::wait_for_refresh() {
 
 uint64_t Timer::reanalyze() {
   //choose a new pattern to use for timing analysis
-  pattern = builder.create();
+  pattern = builder.create(0, 1);
 
   uint64_t previous = 0;
   uint64_t threshold = 0;
