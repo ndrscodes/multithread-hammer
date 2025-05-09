@@ -1,6 +1,8 @@
 #include <cstdio>
+#include <vector>
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
+#include "FuzzReport.hpp"
 #include "HammerSuite.hpp"
 
 int main(int argc, char* argv[]) {
@@ -26,5 +28,5 @@ int main(int argc, char* argv[]) {
 
   HammerSuite suite(builder);
   printf("starting hammering run!\n");
-  suite.auto_fuzz(3, 3600);
+  std::vector<FuzzReport> reports = suite.auto_fuzz(3, 3600);
 }

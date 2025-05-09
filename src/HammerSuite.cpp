@@ -85,6 +85,10 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
     reports.push_back(fuzz(3, locations));
     printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
   }
+
+  printf("stopping fuzzer since maximum duration of %f has passed.\n", 
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
+
   return reports;
 }
 
