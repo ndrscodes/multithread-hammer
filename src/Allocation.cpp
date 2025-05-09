@@ -31,7 +31,8 @@ void Allocation::initialize(init_pattern pattern, void *page_start, size_t size)
 }
 
 void* Allocation::allocate() {
-  start = mmap(nullptr, GB(1), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE | MAP_HUGETLB | MAP_HUGE_1GB | MAP_POPULATE, -1, 0);
+  size = GB(1);
+  start = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE | MAP_HUGETLB | MAP_HUGE_1GB | MAP_POPULATE, -1, 0);
   assert(start != MAP_FAILED);
   initialized = true;
   return start;
