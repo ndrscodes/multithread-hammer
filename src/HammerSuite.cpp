@@ -47,6 +47,8 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations) {
     virt_addrs[i] = (volatile char *)pattern.at(i).to_virt();
   }
 
+  iterations /= s;
+
   for(size_t i = 0; i < iterations; i++) {
     for(size_t j = 0; j < s; j++) {
       _mm_clflushopt((void *)virt_addrs[j]);

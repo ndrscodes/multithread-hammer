@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 
   HammerSuite suite(builder);
   printf("starting hammering run!\n");
-  size_t flips = suite.hammer(500000);
+  size_t flips = suite.hammer(5000000);
 
   printf("flipped %lu bits.\n", flips);
 }
