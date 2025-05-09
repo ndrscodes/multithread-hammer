@@ -1,9 +1,11 @@
 #include <cstdio>
 #include <cstdlib>
+#include "DRAMConfig.hpp"
 #include "HammerSuite.hpp"
 
 int main(int argc, char* argv[]) {
-  printf("sdfksdkfhsdkfs");
+  DRAMConfig::select_config(Microarchitecture::AMD_ZEN_3, 1, 4, 4, false);
+
   Allocation alloc;
   printf("creating allocation...\n");
   alloc.allocate();
@@ -22,7 +24,7 @@ int main(int argc, char* argv[]) {
   Pattern pattern = builder.create(config);
 
   HammerSuite suite(builder);
-  size_t flips = suite.hammer(50000);
+  size_t flips = suite.hammer(500000);
 
   printf("flipped %lu bits.\n", flips);
 }
