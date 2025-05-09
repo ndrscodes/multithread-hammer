@@ -8,8 +8,8 @@ typedef std::pair<size_t, std::vector<DRAMAddr>> PatternPair;
 
 const size_t MIN_ROW_OFFSET = 0;
 const size_t MAX_ROW_OFFSET = 1024;
-const size_t MIN_NUM_AGGRESSORS = 1;
-const size_t MAX_NUM_AGGRESSORS = 100;
+const size_t MIN_NUM_AGGRESSORS = 2;
+const size_t MAX_NUM_AGGRESSORS = 50;
 
 typedef struct {
   size_t num_single_aggressors_per_bank;

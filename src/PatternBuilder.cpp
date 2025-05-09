@@ -36,11 +36,10 @@ DRAMAddr PatternBuilder::get_random_address(size_t bank) {
 }
 
 PatternConfig PatternBuilder::create_random_config(size_t bank) {
-  size_t single_aggressors = agg_count_dist(engine);
-  size_t double_aggressors = agg_count_dist(engine);
+  size_t aggressors = agg_count_dist(engine);
   PatternConfig config = {
-    .num_single_aggressors_per_bank = single_aggressors,
-    .num_double_aggressors_per_bank = double_aggressors,
+    .num_single_aggressors_per_bank = (size_t)(aggressors * 0.5),
+    .num_double_aggressors_per_bank = (size_t)(aggressors * 0.5),
     .allow_duplicates = get_bool(),
     .root_bank = bank
   };
