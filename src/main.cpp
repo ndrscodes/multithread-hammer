@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
   Pattern pattern = builder.create(config);
 
   HammerSuite suite(builder);
+  printf("starting hammering run!\n");
   size_t flips = suite.hammer(500000);
 
   printf("flipped %lu bits.\n", flips);
