@@ -173,9 +173,12 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
       //if the entire row matches, there is no need to do further analysis for this victim.
       if(memcmp(allocation.get_start_address(), compare_data, s) != 0) {
         for(size_t j = 0; j < s; j++) {
-          char v = *(((char *)victim_addr) + j);
-          if(v != expected_value) {
-            flips++;
+          for(int k = 0; k < 8; k++) {
+            char mask = 1 << k;
+            char v = *(((char *)victim_addr) + j);
+            if((v & mask) != (expected_value & mask)) { 
+              flips++;
+            }
           }
         }
       }

@@ -79,15 +79,16 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
   std::uniform_int_distribution<> location_dist(1, DRAMConfig::get().banks());
   std::vector<FuzzReport> reports;
   auto start = std::chrono::steady_clock::now();
-  auto max_duration = std::chrono::seconds(runtime_in_seconds);
-  while(std::chrono::steady_clock::now() - start > max_duration) {
+  auto max_duration = std::chrono::duration<double>(std::chrono::seconds(runtime_in_seconds));
+  while(std::chrono::duration<double>(std::chrono::steady_clock::now() - start) > max_duration) {
     size_t locations = location_dist(random);
     reports.push_back(fuzz(3, locations));
     printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
   }
 
-  printf("stopping fuzzer since maximum duration of %f has passed.\n", 
-        std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
+  printf("stopping fuzzer since maximum duration of %f seconds has passed. (%f)\n", 
+         max_duration.count(),
+         std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
 
   return reports;
 }
