@@ -129,8 +129,8 @@ std::vector<Pattern> PatternBuilder::create_multiple_banks(size_t banks, Pattern
 
 Pattern PatternBuilder::translate(Pattern pattern, size_t bank_offset, size_t row_offset) {
   Pattern offset_pattern(pattern.size());
-  for(size_t i = 0; i < offset_pattern.size(); i++) {
-    DRAMAddr candidate = offset_pattern[i].add(bank_offset, row_offset, 0);
+  for(size_t i = 0; i < pattern.size(); i++) {
+    DRAMAddr candidate = pattern[i].add(bank_offset, row_offset, 0);
     if(!address_valid(candidate.to_virt())) {
       i--;
       //we expect at least some space to be reseved on each bank.
