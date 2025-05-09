@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <cstdlib>
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
 #include "HammerSuite.hpp"
@@ -18,7 +17,6 @@ int main(int argc, char* argv[]) {
   PatternBuilder builder(alloc);
   PatternConfig config {
     .num_single_aggressors_per_bank = 0,
-    .num_banks = 1,
     .num_double_aggressors_per_bank = 2,
     .allow_duplicates = true,
     .root_bank = 0,
@@ -28,7 +26,5 @@ int main(int argc, char* argv[]) {
 
   HammerSuite suite(builder);
   printf("starting hammering run!\n");
-  size_t flips = suite.hammer(5000000);
-
-  printf("flipped %lu bits.\n", flips);
+  suite.auto_fuzz(3, 3600);
 }

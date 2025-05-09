@@ -1,45 +1,91 @@
 #include "HammerSuite.hpp"
 #include <barrier>
+#include <chrono>
 #include <cstddef>
+#include <ctime>
+#include <random>
 #include <thread>
 #include <x86intrin.h>
+#include "DRAMConfig.hpp"
+#include "FuzzReport.hpp"
+#include "LocationReport.hpp"
+#include "PatternBuilder.hpp"
 #include "Timer.hpp"
+
+const size_t ACTIVATIONS = 5000000;
 
 HammerSuite::HammerSuite(PatternBuilder &builder) : builder(builder){}
 
-HammerSuite::HammerSuite(PatternBuilder &builder, std::initializer_list<Pattern> patterns) : builder(builder) {
-  for(auto p : patterns) {
-    this->patterns.insert({ current_pattern_id++, p });
-  }
-}
+LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
+  std::vector<std::thread> threads(patterns.size());
+  std::barrier barrier(patterns.size());
 
-size_t HammerSuite::add_pattern(Pattern pattern) {
-  patterns.insert({ current_pattern_id++ , pattern });
-  return current_pattern_id;
-}
-
-size_t HammerSuite::remove_pattern(size_t id) {
-  return patterns.erase(id);
-}
-
-size_t HammerSuite::hammer(size_t iterations) {
-  std::vector<std::thread> threads;
-  std::barrier b(patterns.size());
   Timer timer(builder);
-  for(auto it = patterns.begin(); it != patterns.end(); it++) {
-    size_t id = it->first;
-    threads.push_back(std::thread(&HammerSuite::hammer_fn, this, id, std::ref(it->second), iterations, std::ref(b), std::ref(timer)));
+  size_t thread_id = 0;
+  for(auto pattern : patterns) {
+    printf("starting thread for pattern with %lu addresses on bank %lu...\n", pattern.size(), pattern[0].actual_bank());
+    threads.push_back(
+      std::thread(
+        &HammerSuite::hammer_fn, 
+        this, 
+        thread_id++, 
+        std::ref(pattern), 
+        ACTIVATIONS, 
+        std::ref(barrier), 
+        std::ref(timer)
+      )
+    );
   }
   for(auto &t : threads) {
     t.join();
   }
 
-  size_t flips = 0;
-  for(auto it = patterns.begin(); it != patterns.end(); it++) {
-    flips += builder.check(it->second);
+  LocationReport locationReport;
+  for(auto pattern : patterns) {
+    PatternReport report {
+      .pattern = pattern,
+      .flips = builder.check(pattern)
+    };
+    locationReport.add_report(report);
   }
 
-  return flips;
+  return locationReport;
+}
+
+FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
+  FuzzReport report;
+  std::vector<Pattern> fuzz_patterns = builder.create_multiple_banks(patterns);
+  bool first = true;
+  printf("running %lu patterns over %lu locations...\n", patterns, locations);
+  for(size_t i = 0; i < locations; i++) {
+    if(!first) {
+      for(size_t j = 0; j < patterns; j++) {
+        //shift the pattern to the next bank with one row offset just to diversify...
+        fuzz_patterns[j] = builder.translate(fuzz_patterns[j], 1, 1);
+      }
+    } else {
+      first = false;
+    }
+    report.add_report(fuzz_location(fuzz_patterns));
+    printf("executed fuzzing run on location %lu with %lu patterns, flipping %lu bits.\n", i, patterns, report.get_reports().back().sum_flips());
+  }
+
+  printf("managed to flipt %lu bits over %lu locations.\n", report.sum_flips(), locations);
+  return report;
+}
+
+std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t runtime_in_seconds) {
+  std::mt19937 random;
+  std::uniform_int_distribution<> location_dist(1, DRAMConfig::get().banks());
+  std::vector<FuzzReport> reports;
+  auto start = std::chrono::steady_clock::now();
+  auto max_duration = std::chrono::seconds(runtime_in_seconds);
+  while(std::chrono::steady_clock::now() - start > max_duration) {
+    size_t locations = location_dist(random);
+    reports.push_back(fuzz(3, locations));
+    printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
+  }
+  return reports;
 }
 
 void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, Timer &timer) {

@@ -8,13 +8,12 @@
 #include <set>
 #include <vector>
 
-const size_t MIN_NUM_BANKS = 1;
 const size_t VICTIM_ROWS = 5;
 
 PatternBuilder::PatternBuilder(Allocation &allocation) : allocation(allocation) {
   engine = std::mt19937();
   row_offset_dist = std::uniform_int_distribution<>(MIN_ROW_OFFSET, MAX_ROW_OFFSET);
-  bank_offset_dist = std::uniform_int_distribution<>(0, DRAMConfig::get().banks() - 1);
+  bank_offset_dist = std::uniform_int_distribution<>(0, DRAMConfig::get().banks());
   agg_count_dist = std::uniform_int_distribution<>(MIN_NUM_AGGRESSORS, MAX_NUM_AGGRESSORS);
 }
 
@@ -36,98 +35,115 @@ DRAMAddr PatternBuilder::get_random_address(size_t bank) {
   return addr;
 }
 
-std::vector<DRAMAddr> PatternBuilder::create() {
-  std::uniform_int_distribution<> bank_num_dist(MIN_NUM_BANKS, DRAMConfig::get().banks());
+PatternConfig PatternBuilder::create_random_config(size_t bank) {
   size_t single_aggressors = agg_count_dist(engine);
   size_t double_aggressors = agg_count_dist(engine);
   PatternConfig config = {
     .num_single_aggressors_per_bank = single_aggressors,
-    .num_banks = (size_t)bank_num_dist(engine),
     .num_double_aggressors_per_bank = double_aggressors,
     .allow_duplicates = get_bool(),
-    .root_bank = (size_t)bank_offset_dist(engine)
+    .root_bank = bank
   };
-  return create(config);
+  return config;
+}
+
+std::vector<DRAMAddr> PatternBuilder::create() {
+  return create(create_random_config(bank_offset_dist(engine)));
 }
 
 std::vector<DRAMAddr> PatternBuilder::create(size_t bank) {
-  return create(bank, agg_count_dist(engine));
+  return create(create_random_config(bank));
 }
 
 std::vector<DRAMAddr> PatternBuilder::create(size_t bank, size_t num_aggressors_per_bank) {
-  PatternConfig config = {
-    .num_single_aggressors_per_bank = num_aggressors_per_bank,
-    .num_banks = 1,
-    .num_double_aggressors_per_bank = 0,
-    .allow_duplicates = get_bool(),
-    .root_bank = bank,
-  };
+  PatternConfig config = create_random_config(bank);
+  config.num_single_aggressors_per_bank = num_aggressors_per_bank * 0.75;
+  config.num_double_aggressors_per_bank = num_aggressors_per_bank * 0.25;
   return create(config);
 }
 
 std::vector<DRAMAddr> PatternBuilder::create(PatternConfig config) {
-  std::set<size_t> used_banks;
   std::vector<DRAMAddr> addresses;
-  used_banks.insert(config.root_bank);
-  do {
-    used_banks.insert((config.root_bank + bank_offset_dist(engine)) % DRAMConfig::get().banks());
-  } while(used_banks.size() < config.num_banks);
 
   std::set<void *> checked_addrs;
   DRAMAddr start_dram_addr((void *)allocation.get_start_address());
-  for(auto bank : used_banks) {
-    int i = 0;
-    while(i < config.num_single_aggressors_per_bank) {
-      DRAMAddr address = get_random_address(bank);
-      void *address_virt = address.to_virt();
+  int i = 0;
+  while(i < config.num_single_aggressors_per_bank + config.num_double_aggressors_per_bank) {
+    DRAMAddr address = get_random_address(config.root_bank);
+    void *address_virt = address.to_virt();
 
-      if(!address_valid(address_virt)) {
+    if(!config.allow_duplicates) {
+      if(checked_addrs.contains(address_virt)) {
         continue;
       }
-
-      if(!config.allow_duplicates) {
-        if(checked_addrs.contains(address_virt)) {
-          continue;
-        }
-        checked_addrs.insert(address_virt);
-      }
-
-      addresses.push_back(address);
-      i++;
+      checked_addrs.insert(address_virt);
     }
 
-    i = 0;
-    while(i < config.num_double_aggressors_per_bank) {
-      DRAMAddr upper_address = get_random_address(bank);
-      void *upper_virt = upper_address.to_virt();
-      DRAMAddr lower_address = upper_address.add(0, 2, 0);
+    if(i < config.num_double_aggressors_per_bank) {
+      DRAMAddr lower_address = address.add(0, 2, 0);
       void *lower_virt = lower_address.to_virt();
-      
+    
       //check if we wrapped around to the other "side"
-      if(upper_address.actual_row() > lower_address.actual_row()) {
+      if(address.actual_row() > lower_address.actual_row()) {
         continue;
       }
 
       //check if both aggressors are valid at all
-      if(!address_valid(upper_virt) || !address_valid(lower_virt)) {
+      if(!address_valid(lower_virt)) {
         continue;
       }
-
+    
       if(!config.allow_duplicates) {
-        if(checked_addrs.contains(lower_virt) || checked_addrs.contains(upper_virt)) {
+        if(checked_addrs.contains(lower_virt)) {
           continue;
         }
         checked_addrs.insert(lower_virt);
-        checked_addrs.insert(upper_virt);
       }
 
       addresses.push_back(lower_address);
-      addresses.push_back(upper_address);
-      i++;
     }
+
+    addresses.push_back(address);
+    i++;
   }
 
   return addresses;
+}
+
+std::vector<Pattern> PatternBuilder::create_multiple_banks(size_t banks) {
+  std::vector<Pattern> patterns(banks);
+  size_t bank_start = bank_offset_dist(engine);
+  for(size_t i = 0; i < banks; i++) {
+    patterns[i] = create((bank_start + i) % DRAMConfig::get().banks());
+  }
+  return patterns;
+}
+
+std::vector<Pattern> PatternBuilder::create_multiple_banks(size_t banks, PatternConfig config) {
+  std::vector<Pattern> patterns(banks);
+  for(size_t i = 0; i < banks; i++) {
+    config.root_bank = (config.root_bank + i) % DRAMConfig::get().banks();
+    patterns[i] = create(config);
+  }
+  return patterns;
+}
+
+Pattern PatternBuilder::translate(Pattern pattern, size_t bank_offset, size_t row_offset) {
+  Pattern offset_pattern(pattern.size());
+  for(size_t i = 0; i < offset_pattern.size(); i++) {
+    DRAMAddr candidate = offset_pattern[i].add(bank_offset, row_offset, 0);
+    if(!address_valid(candidate.to_virt())) {
+      i--;
+      //we expect at least some space to be reseved on each bank.
+      //we increment the row offset until we find a valid space within the new bank.
+      //since all rows are moved by this fixed offset, the pattern still remains the same.
+      row_offset += 32;
+      continue;
+    }
+    offset_pattern[i] = candidate;
+  }
+
+  return offset_pattern;
 }
 
 size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {

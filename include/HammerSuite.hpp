@@ -1,13 +1,11 @@
 #pragma once
 #include <barrier>
-#include <initializer_list>
 #include <map>
 #include <vector>
-#include "DRAMAddr.hpp"
+#include "FuzzReport.hpp"
 #include "PatternBuilder.hpp"
 #include "Timer.hpp"
-typedef std::vector<DRAMAddr> Pattern;
-typedef std::pair<size_t, std::vector<DRAMAddr>> PatternPair;
+#include "LocationReport.hpp"
 
 class HammerSuite {
 private:
@@ -17,8 +15,7 @@ private:
   PatternBuilder &builder;
 public:
   HammerSuite(PatternBuilder &builder);
-  HammerSuite(PatternBuilder &alloc, std::initializer_list<Pattern> patterns);
-  size_t add_pattern(Pattern pattern);
-  size_t remove_pattern(size_t id);
-  size_t hammer(size_t iterations);
+  FuzzReport fuzz(size_t locations, size_t patterns);
+  LocationReport fuzz_location(std::vector<Pattern> patterns);
+  std::vector<FuzzReport> auto_fuzz(size_t locations_per_fuzz, size_t max_runtime_in_seconds);
 };
