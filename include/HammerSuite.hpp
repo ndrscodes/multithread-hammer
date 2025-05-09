@@ -1,3 +1,4 @@
+#include <barrier>
 #include <initializer_list>
 #include <map>
 #include <vector>
@@ -10,7 +11,7 @@ class HammerSuite {
 private:
   size_t current_pattern_id;
   std::map<size_t, Pattern> patterns;
-  void hammer_fn(size_t id, Pattern &pattern, size_t iterations);
+  void hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier);
   PatternBuilder &builder;
 public:
   HammerSuite(PatternBuilder &builder);
