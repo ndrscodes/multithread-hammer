@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
+#include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
 #include "HammerSuite.hpp"
 
@@ -12,6 +13,8 @@ int main(int argc, char* argv[]) {
   printf("allocated %lu bytes of memory.\n", alloc.get_size());
   alloc.initialize(init_pattern::FENCE);
   printf("initialized memory with strategy FENCE.\n");
+  DRAMAddr::initialize_mapping(0, (volatile char *)alloc.get_start_address());
+
   PatternBuilder builder(alloc);
   PatternConfig config {
     .num_single_aggressors_per_bank = 0,
