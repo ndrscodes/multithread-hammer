@@ -36,8 +36,8 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
       )
     );
   }
-  for(auto &t : threads) {
-    t.join();
+  for(int i = 0; i < threads.size(); i++) {
+    threads[i].join();
   }
 
   LocationReport locationReport;
