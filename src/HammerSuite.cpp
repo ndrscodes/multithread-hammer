@@ -24,20 +24,18 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
   size_t thread_id = 0;
   for(int i = 0; i < patterns.size(); i++) {
     printf("starting thread for pattern with %lu addresses on bank %lu...\n", patterns[i].size(), patterns[i][0].actual_bank());
-    threads.push_back(
-      std::thread(
-        &HammerSuite::hammer_fn, 
-        this, 
-        thread_id++, 
-        std::ref(patterns[i]), 
-        ACTIVATIONS, 
-        std::ref(barrier), 
-        std::ref(timer)
-      )
+    threads[i] = std::thread(
+      &HammerSuite::hammer_fn, 
+      this, 
+      thread_id++, 
+      std::ref(patterns[i]), 
+      ACTIVATIONS, 
+      std::ref(barrier), 
+      std::ref(timer)
     );
   }
-  for(int i = 0; i < threads.size(); i++) {
-    threads[i].join();
+  for(auto& thread : threads) {
+    thread.join();
   }
 
   LocationReport locationReport;
