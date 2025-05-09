@@ -2,6 +2,7 @@
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
 #include "RandomData.hpp"
+#include <cassert>
 #include <cstring>
 #include <random>
 #include <set>
@@ -19,6 +20,20 @@ PatternBuilder::PatternBuilder(Allocation &allocation) : allocation(allocation) 
 
 bool PatternBuilder::address_valid(void *address) {
   return allocation.is_valid(address);
+}
+
+DRAMAddr PatternBuilder::get_random_address() {
+  return get_random_address(0);
+}
+
+DRAMAddr PatternBuilder::get_random_address(size_t bank) {
+  DRAMAddr addr;
+  uint16_t retries = 0;
+  do {
+    addr = DRAMAddr(bank, row_offset_dist(engine), 0);
+    assert(++retries < 512);
+  } while(!address_valid(addr.to_virt()));
+  return addr;
 }
 
 std::vector<DRAMAddr> PatternBuilder::create() {
@@ -63,7 +78,7 @@ std::vector<DRAMAddr> PatternBuilder::create(PatternConfig config) {
   for(auto bank : used_banks) {
     int i = 0;
     while(i < config.num_single_aggressors_per_bank) {
-      DRAMAddr address(bank, (start_dram_addr.row + row_offset_dist(engine)) % DRAMConfig::get().rows(), 0);
+      DRAMAddr address = get_random_address(bank);
       void *address_virt = address.to_virt();
 
       if(!address_valid(address_virt)) {
@@ -83,7 +98,7 @@ std::vector<DRAMAddr> PatternBuilder::create(PatternConfig config) {
 
     i = 0;
     while(i < config.num_double_aggressors_per_bank) {
-      DRAMAddr upper_address(bank, (start_dram_addr.row + row_offset_dist(engine)) % DRAMConfig::get().rows(), 0);
+      DRAMAddr upper_address = get_random_address(bank);
       void *upper_virt = upper_address.to_virt();
       DRAMAddr lower_address = upper_address.add(0, 2, 0);
       void *lower_virt = lower_address.to_virt();

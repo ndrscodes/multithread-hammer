@@ -31,5 +31,7 @@ class PatternBuilder {
     std::vector<DRAMAddr> create(size_t bank);
     std::vector<DRAMAddr> create(size_t bank, size_t num_aggressors_per_bank);
     std::vector<DRAMAddr> create(PatternConfig config);
+    DRAMAddr get_random_address(size_t bank);
+    DRAMAddr get_random_address();
     size_t check(std::vector<DRAMAddr> aggressors);
 };

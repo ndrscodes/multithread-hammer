@@ -5,7 +5,7 @@
 #include <sched.h>
 #include <vector>
 #include <math.h>
-#define PEAK_DECISION_MULTIPLIER 1.02
+#define PEAK_DECISION_MULTIPLIER 1.03
 
 Timer::Timer(PatternBuilder &builder) : builder(builder) {
   refresh_threshold = reanalyze();
@@ -30,7 +30,7 @@ uint64_t Timer::get_median(std::vector<uint64_t> &measurements) {
 
 std::vector<uint64_t> Timer::get_measurements(size_t n) {
   std::vector<uint64_t> measurements(n);
-  volatile char *addr = (volatile char *)pattern[0].to_virt();
+  volatile char *addr = (volatile char *)builder.get_random_address().to_virt();
   for(size_t i = 0; i < n; i++) {
     measurements[i] = measure(addr);
   }
@@ -41,10 +41,10 @@ uint64_t Timer::get_refresh_threshold() {
   return refresh_threshold;
 }
 
-uint64_t Timer::wait_for_refresh() {
+uint64_t Timer::wait_for_refresh(size_t bank) {
   uint64_t i = 0;
   uint64_t timing;
-  volatile char *address = (volatile char *)pattern[0].to_virt();
+  volatile char *address = (volatile char *)builder.get_random_address(bank).to_virt();
   do {
     timing = measure(address);
     i++;
@@ -55,8 +55,6 @@ uint64_t Timer::wait_for_refresh() {
 
 uint64_t Timer::reanalyze() {
   //choose a new pattern to use for timing analysis
-  pattern = builder.create(0, 1);
-
   uint64_t previous = 0;
   uint64_t threshold = 0;
 

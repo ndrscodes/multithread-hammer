@@ -55,7 +55,7 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
 
   start_barrier.arrive_and_wait();
   printf("starting pattern thread %lu.\n", id);
-  timer.wait_for_refresh();
+  timer.wait_for_refresh(pattern[0].actual_bank());
   for(size_t i = 0; i < iterations; i++) {
     for(size_t j = 0; j < s; j++) {
       _mm_clflushopt((void *)virt_addrs[j]);

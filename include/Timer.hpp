@@ -1,5 +1,4 @@
 #pragma once
-#include "DRAMAddr.hpp"
 #include "PatternBuilder.hpp"
 #include <cstdint>
 #include <emmintrin.h>
@@ -8,7 +7,6 @@
 class Timer {
   private:
     PatternBuilder &builder;
-    std::vector<DRAMAddr> pattern;
     uint64_t refresh_threshold;
     double_t get_average(std::vector<uint64_t> &measurements);
     uint64_t get_median(std::vector<uint64_t> &measurements);
@@ -18,7 +16,7 @@ class Timer {
     Timer(PatternBuilder &builder);
     uint64_t get_refresh_threshold();
     uint64_t reanalyze();
-    uint64_t wait_for_refresh();
+    uint64_t wait_for_refresh(size_t bank);
 };
 
 inline uint64_t Timer::measure(volatile char *addr) {
