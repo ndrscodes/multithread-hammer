@@ -158,7 +158,7 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
   std::set<void *> checked_addrs;
 
   for(auto aggressor : aggressors) {
-    for(int i = -(int)VICTIM_ROWS; i < VICTIM_ROWS; i++) {
+    for(int i = -(int)VICTIM_ROWS; i < (int)VICTIM_ROWS; i++) {
       if(i == 0) {
         continue;
       }
