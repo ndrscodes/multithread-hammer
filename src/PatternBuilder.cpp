@@ -164,7 +164,11 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
       }
       DRAMAddr victim = DRAMAddr(aggressor.bank, aggressor.row + i, 0);
       void *victim_addr = victim.to_virt();
-      if(!allocation.is_valid(victim_addr) || checked_addrs.contains(victim_addr)) {
+      if(!allocation.is_valid(victim_addr)) {
+        printf("warning: victim %s is invalid.\n", victim.to_string().c_str());
+        continue;
+      }
+      if(checked_addrs.contains(victim_addr)) {
         continue;
       }
       
