@@ -40,7 +40,7 @@ PatternConfig PatternBuilder::create_random_config(size_t bank) {
   PatternConfig config = {
     .num_single_aggressors_per_bank = (size_t)(aggressors * 0.25),
     .num_double_aggressors_per_bank = (size_t)(aggressors * 0.75),
-    .allow_duplicates = get_bool(),
+    .allow_duplicates = true,
     .root_bank = bank
   };
   return config;
@@ -143,6 +143,54 @@ Pattern PatternBuilder::translate(Pattern pattern, size_t bank_offset, size_t ro
   }
 
   return offset_pattern;
+}
+
+size_t PatternBuilder::full_alloc_check() {
+  size_t s = DRAMConfig::get().row_to_row_offset();
+  void* compare_data = malloc(sizeof(char) * s);
+  init_pattern pattern = allocation.get_init_pattern();
+  char expected_value = allocation.get_fill_value(pattern); 
+
+  size_t flips = 0;
+
+  Allocation::initialize(pattern, compare_data, sizeof(char) * s);
+
+  char *start = (char *)allocation.get_start_address();
+  while(start < allocation.get_end_address()) {
+    size_t alloc_size = s;
+    if((char *)allocation.get_end_address() - start < alloc_size) {
+      alloc_size = (char *)allocation.get_end_address() - start;
+    }
+    if(memcmp(start, compare_data, alloc_size) != 0) {
+      printf("victim page %p contains a flip. Starting detailed check.\n", start);
+      for(size_t j = 0; j < s; j++) {
+        char v = *(start + j);
+        if(v == expected_value) {
+          continue;
+        }
+        for(int k = 0; k < 8; k++) {
+          char mask = 1 << k;
+          if((v & mask) != (expected_value & mask)) {
+            printf("FLIP: victim row: %p, byte offset: %lu, bit position in byte: %d, flipped from %b to %b, byte value %b instead of %b",
+                   start, 
+                   j, 
+                   k, 
+                   expected_value & mask,
+                   v & mask,
+                   v,
+                   expected_value
+            );
+            flips++;
+          }
+        }
+        *(start + j) = expected_value;
+      }
+    }
+  } 
+
+  free(compare_data);
+
+  return flips;
 }
 
 size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {

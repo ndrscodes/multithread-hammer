@@ -39,4 +39,5 @@ class PatternBuilder {
     DRAMAddr get_random_address(size_t bank);
     DRAMAddr get_random_address();
     size_t check(std::vector<DRAMAddr> aggressors);
+    size_t full_alloc_check();
 };
