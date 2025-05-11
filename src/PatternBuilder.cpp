@@ -163,7 +163,7 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
         continue;
       }
       DRAMAddr victim = DRAMAddr(aggressor.bank, aggressor.row + i, 0);
-      void *victim_addr = victim.to_virt();
+      char *victim_addr = (char *)victim.to_virt();
       if(!allocation.is_valid(victim_addr)) {
         printf("warning: victim %s is invalid.\n", victim.to_string().c_str());
         continue;
@@ -171,11 +171,19 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
       if(checked_addrs.contains(victim_addr)) {
         continue;
       }
+
+      size_t alloc_size = s;
+
+      if(!allocation.is_valid(victim_addr + s)) {
+        size_t max_size = (char *)allocation.get_end_address() - victim_addr;
+        printf("warning: victim can't be checked for flips. Row size is %lu but only %lu bytes are allocated to us.", alloc_size, max_size);
+        alloc_size = max_size;
+      }
       
       checked_addrs.insert(victim_addr);
 
       //if the entire row matches, there is no need to do further analysis for this victim.
-      if(memcmp(victim_addr, compare_data, s) != 0) {
+      if(memcmp(victim_addr, compare_data, alloc_size) != 0) {
         for(size_t j = 0; j < s; j++) {
           for(int k = 0; k < 8; k++) {
             char mask = 1 << k;
