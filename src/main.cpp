@@ -42,16 +42,10 @@ int main(int argc, char* argv[]) {
   DRAMAddr::initialize_mapping(0, (volatile char *)alloc.get_start_address());
 
   PatternBuilder builder(alloc);
-  PatternConfig config {
-    .num_single_aggressors_per_bank = 0,
-    .num_double_aggressors_per_bank = 2,
-    .allow_duplicates = true,
-    .root_bank = 0,
-  };
-
-  Pattern pattern = builder.create(config);
 
   HammerSuite suite(builder);
+  printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
+  printf("initialized location parameter to %lu.\n", args.locations);
   printf("starting hammering run!\n");
   std::vector<FuzzReport> reports = suite.auto_fuzz(args.locations, args.runtime_limit);
 }
