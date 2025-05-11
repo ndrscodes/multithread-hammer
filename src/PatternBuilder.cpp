@@ -184,11 +184,24 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
 
       //if the entire row matches, there is no need to do further analysis for this victim.
       if(memcmp(victim_addr, compare_data, alloc_size) != 0) {
+        printf("%s contains a flip. Starting detailed check.\n", victim.to_string().c_str());
         for(size_t j = 0; j < s; j++) {
           for(int k = 0; k < 8; k++) {
-            char mask = 1 << k;
             char v = *(((char *)victim_addr) + j);
-            if((v & mask) != (expected_value & mask)) { 
+            if(v == expected_value) {
+              continue;
+            }
+            char mask = 1 << k;
+            if((v & mask) != (expected_value & mask)) {
+              printf("FLIP: victim row: %s, byte offset: %lu, bit position in byte: %d, flipped from %b to %b, byte value %b instead of %b",
+                     victim.to_string().c_str(), 
+                     j, 
+                     k, 
+                     expected_value & mask,
+                     v & mask,
+                     v,
+                     expected_value
+              );
               flips++;
             }
           }
