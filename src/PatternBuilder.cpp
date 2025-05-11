@@ -176,7 +176,7 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
 
       if(!allocation.is_valid(victim_addr + s)) {
         size_t max_size = (char *)allocation.get_end_address() - victim_addr;
-        printf("warning: victim can't be checked for flips. Row size is %lu but only %lu bytes are allocated to us.", alloc_size, max_size);
+        printf("warning: victim can't be checked for flips. Row size is %lu but only %lu bytes are allocated to us.\n", alloc_size, max_size);
         alloc_size = max_size;
       }
       
