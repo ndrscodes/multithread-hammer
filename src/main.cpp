@@ -16,10 +16,10 @@ struct Args {
 Args parse_args(int argc, char* argv[]) {
   Args args;
   for(int i = 1; i < argc; i++) {
-    if((strncmp("-r", argv[i], 2) || strncmp("--runtime", argv[i], 9)) && i + 1 < argc) {
+    if((strncmp("-r", argv[i], 2) == 0 || strncmp("--runtime", argv[i], 9) == 0) && i + 1 < argc) {
       args.runtime_limit = atoi(argv[i + 1]);
       i++;
-    } else if((strncmp("-l", argv[i], 2) || strncmp("--locations", argv[i], 11)) && i + 1 < argc) {
+    } else if((strncmp("-l", argv[i], 2) == 0 || strncmp("--locations", argv[i], 11) == 0) && i + 1 < argc) {
       args.locations = atoi(argv[i + 1]);
       i++;
     }
