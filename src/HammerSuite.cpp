@@ -11,8 +11,9 @@
 #include "LocationReport.hpp"
 #include "PatternBuilder.hpp"
 #include "Timer.hpp"
+#define SYNC_TO_REF FALSE
 
-const size_t ACTIVATIONS = 5000000;
+const size_t ACTIVATIONS = 8000000;
 
 HammerSuite::HammerSuite(PatternBuilder &builder) : builder(builder){}
 
@@ -68,19 +69,19 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
     printf("executed fuzzing run on location %lu with %lu patterns, flipping %lu bits.\n", i, patterns, report.get_reports().back().sum_flips());
   }
 
-  printf("managed to flipt %lu bits over %lu locations.\n", report.sum_flips(), locations);
+  printf("managed to flip %lu bits over %lu locations.\n", report.sum_flips(), locations);
   return report;
 }
 
 std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t runtime_in_seconds) {
   std::mt19937 random;
-  std::uniform_int_distribution<> location_dist(1, DRAMConfig::get().banks());
+  std::uniform_int_distribution<> location_dist(1, DRAMConfig::get().banks() * 0.7); // at most 70% of banks will be used per pattern
   std::vector<FuzzReport> reports;
   auto start = std::chrono::steady_clock::now();
   auto max_duration = std::chrono::seconds(runtime_in_seconds);
   while(std::chrono::steady_clock::now() - start < max_duration) {
     size_t locations = location_dist(random);
-    reports.push_back(fuzz(3, locations));
+    reports.push_back(fuzz(locations_per_fuzz, locations));
     printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
   }
 
@@ -103,8 +104,9 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
   iterations /= s;
 
   start_barrier.arrive_and_wait();
-  printf("starting pattern thread %lu.\n", id);
+#if SYNC_TO_REF
   timer.wait_for_refresh(pattern[0].actual_bank());
+#endif
   for(size_t i = 0; i < iterations; i++) {
     for(size_t j = 0; j < s; j++) {
       _mm_clflushopt((void *)virt_addrs[j]);

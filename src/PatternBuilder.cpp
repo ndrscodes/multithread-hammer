@@ -38,8 +38,8 @@ DRAMAddr PatternBuilder::get_random_address(size_t bank) {
 PatternConfig PatternBuilder::create_random_config(size_t bank) {
   size_t aggressors = agg_count_dist(engine);
   PatternConfig config = {
-    .num_single_aggressors_per_bank = (size_t)(aggressors * 0.5),
-    .num_double_aggressors_per_bank = (size_t)(aggressors * 0.5),
+    .num_single_aggressors_per_bank = (size_t)(aggressors * 0.25),
+    .num_double_aggressors_per_bank = (size_t)(aggressors * 0.75),
     .allow_duplicates = get_bool(),
     .root_bank = bank
   };
@@ -56,8 +56,8 @@ std::vector<DRAMAddr> PatternBuilder::create(size_t bank) {
 
 std::vector<DRAMAddr> PatternBuilder::create(size_t bank, size_t num_aggressors_per_bank) {
   PatternConfig config = create_random_config(bank);
-  config.num_single_aggressors_per_bank = num_aggressors_per_bank * 0.75;
-  config.num_double_aggressors_per_bank = num_aggressors_per_bank * 0.25;
+  config.num_single_aggressors_per_bank = num_aggressors_per_bank * 0.25;
+  config.num_double_aggressors_per_bank = num_aggressors_per_bank * 0.75;
   return create(config);
 }
 
@@ -170,7 +170,7 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
       checked_addrs.insert(victim_addr);
 
       //if the entire row matches, there is no need to do further analysis for this victim.
-      if(memcmp(allocation.get_start_address(), compare_data, s) != 0) {
+      if(memcmp(victim_addr, compare_data, s) != 0) {
         for(size_t j = 0; j < s; j++) {
           for(int k = 0; k < 8; k++) {
             char mask = 1 << k;
