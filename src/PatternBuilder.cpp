@@ -162,12 +162,14 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
       if(i == 0) {
         continue;
       }
-      void *victim_addr = DRAMAddr(aggressor.bank, aggressor.row - i, 0).to_virt();
+      DRAMAddr victim = DRAMAddr(aggressor.bank, aggressor.row + i, 0);
+      void *victim_addr = victim.to_virt();
       if(!allocation.is_valid(victim_addr) || checked_addrs.contains(victim_addr)) {
         continue;
       }
       
       checked_addrs.insert(victim_addr);
+      printf("checking %lu bytes of victim %s for flips.\n", s, victim.to_string().c_str());
 
       //if the entire row matches, there is no need to do further analysis for this victim.
       if(memcmp(victim_addr, compare_data, s) != 0) {
