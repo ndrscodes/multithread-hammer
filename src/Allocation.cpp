@@ -57,9 +57,9 @@ bool Allocation::is_valid(void *address) {
   return address >= get_start_address() && address < get_end_address();
 }
 
-size_t Allocation::find_flips(void *start, void *end) {
-  char *start_c = (char *)start;
-  char *end_c = (char *)end;
+size_t Allocation::find_flips(void *start_addr, void *end_addr) {
+  char *start_c = (char *)start_addr;
+  char *end_c = (char *)end_addr;
   size_t init_pagesize = DRAMConfig::get().row_to_row_offset();
 
   size_t pages = (end_c - start_c) / init_pagesize;
@@ -75,29 +75,28 @@ size_t Allocation::find_flips(void *start, void *end) {
     }
 
     char *compare_page = (char *)malloc(page_size);
-    
-    size_t seed = (start_c - (char *)get_start_address()) / page_size;
+   
+    size_t seed = (start_c - (char *)start) / init_pagesize;
     srand(seed);
     
     for(size_t i = 0; i < page_size; i++) {
       compare_page[i] = rand() % 256;
     }
 
-    srand(seed);
-
     if(memcmp(compare_page, start_c, page_size) != 0) {
-      printf("Flip detected on page %lu. Analyzing.\n", seed);
+      printf("Flip detected on page %lu. Analyzing.\n", p);
       for(size_t i = 0; i < page_size; i++) {
         char v = compare_page[i];
-        char actual = *((char *)start_c);
+        char actual = *((char *)start_c + i);
         if(v == actual) {
           continue;
         }
         for(size_t j = 0; j < 8; j++) {
           if(((actual >> j) & 0x1) != ((v >> j) & 0x1)) {
             flips++;
-            printf("[FLIP] address: %p, page: %lu, offset: %lu, int offset: %lu, from: %b, to: %b, bit from %b to %b\n", 
-                   &compare_page[i],
+            printf("[FLIP] address: %p, page: %lu, seed: %lu, offset: %lu, int offset: %lu, from: %x, to: %x, bit from %b to %b\n", 
+                   start_c + i,
+                   p,
                    seed,
                    i,
                    j,
