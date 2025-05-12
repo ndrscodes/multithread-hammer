@@ -96,7 +96,7 @@ size_t Allocation::find_flips(void *start, void *end) {
         for(size_t j = 0; j < 8; j++) {
           if(((actual >> j) & 0x1) != ((v >> j) & 0x1)) {
             flips++;
-            printf("[FLIP] address: %p, page: %lu, offset: %lu, int offset: %lu, from: %b, to: %b, bit from %b to %b", 
+            printf("[FLIP] address: %p, page: %lu, offset: %lu, int offset: %lu, from: %b, to: %b, bit from %b to %b\n", 
                    &compare_page[i],
                    seed,
                    i,
