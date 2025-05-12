@@ -80,7 +80,7 @@ size_t Allocation::find_flips(void *start, void *end) {
     srand(seed);
     
     for(size_t i = 0; i < page_size; i++) {
-      compare_page[i] = rand();
+      compare_page[i] = rand() % 256;
     }
 
     srand(seed);
