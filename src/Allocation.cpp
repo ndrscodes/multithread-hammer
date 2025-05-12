@@ -17,15 +17,14 @@ Allocation::Allocation() {
 void Allocation::initialize() {
   size_t page_size = DRAMConfig::get().row_to_row_offset();
   size_t pages = ((char *)get_end_address() - (char *)get_start_address()) / page_size;
-  page_size /= sizeof(int);
   for(size_t i = 0; i < pages; i++) {
     srand(i);
     for(size_t j = 0; j < page_size; j++) {
-      int *target = (int *)start + i * page_size + j;
-      if(target > (int *)start) {
+      char *target = (char *)start + i * page_size + j;
+      if(target > (char *)get_end_address()) {
         break;
       }
-      *target = rand();
+      *target = rand() % 256;
     }
   }
 }
@@ -59,56 +58,59 @@ bool Allocation::is_valid(void *address) {
 }
 
 size_t Allocation::find_flips(void *start, void *end) {
-  int *start_i = (int *)start;
-  int *end_i = (int *)end;
+  char *start_c = (char *)start;
+  char *end_c = (char *)end;
   size_t init_pagesize = DRAMConfig::get().row_to_row_offset();
 
-  size_t pages = (end_i - start_i) / init_pagesize;
+  size_t pages = (end_c - start_c) / init_pagesize;
   size_t flips = 0;
   for(size_t p = 0; p < pages; p++) {
-    if(start_i > (int *)get_end_address()) {
+    if(start_c > (char *)get_end_address()) {
       return 0;
     }
 
     size_t page_size = init_pagesize;
-    if(start_i + page_size > get_end_address()) {
-      page_size = (int *)get_end_address() - start_i;
+    if(start_c + page_size > get_end_address()) {
+      page_size = (char *)get_end_address() - start_c;
     }
-    page_size -= page_size % sizeof(int);
 
     int *compare_page = (int *)malloc(page_size);
     
-    size_t seed = (start_i - (int *)get_start_address()) / page_size;
+    size_t seed = (start_c - (char *)get_start_address()) / page_size;
     srand(seed);
     
-    for(size_t i = 0; i < page_size / sizeof(int); i++) {
+    for(size_t i = 0; i < page_size; i++) {
       compare_page[i] = rand();
     }
 
     srand(seed);
 
-    if(memcmp(compare_page, start_i, page_size) != 0) {
+    if(memcmp(compare_page, start_c, page_size) != 0) {
       printf("Flip detected on page %lu. Analyzing.\n", seed);
-      for(size_t i = 0; i < page_size / sizeof(int); i++) {
-        int v = compare_page[i];
-        int actual = *((int *)start_i);
+      for(size_t i = 0; i < page_size; i++) {
+        char v = compare_page[i];
+        char actual = *((char *)start_c);
         if(v == actual) {
           continue;
         }
-        for(size_t j = 0; j < sizeof(int) * 8; j++) {
+        for(size_t j = 0; j < 8; j++) {
           if(((actual >> j) & 0x1) != ((v >> j) & 0x1)) {
             flips++;
-            printf("[FLIP] address: %p, page: %lu, offset: %lu, int offset: %lu", 
+            printf("[FLIP] address: %p, page: %lu, offset: %lu, int offset: %lu, from: %b, to: %b, bit from %b to %b", 
                    &compare_page[i],
                    seed,
-                   i * sizeof(int),
-                   j);
+                   i,
+                   j,
+                   v,
+                   actual,
+                   (v >> j) & 1,
+                   (actual >> j) & 1);
           }
         }
       }
     }
 
-    start_i += init_pagesize;
+    start_c += init_pagesize;
   }
 
   return flips;
