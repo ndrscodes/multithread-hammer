@@ -1,7 +1,7 @@
 #include "PatternBuilder.hpp"
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
-#include "RandomData.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <random>
@@ -27,9 +27,12 @@ DRAMAddr PatternBuilder::get_random_address() {
 
 DRAMAddr PatternBuilder::get_random_address(size_t bank) {
   DRAMAddr addr;
+  auto area = std::uniform_int_distribution<>(0, 4);
+  size_t area_size = DRAMConfig::get().rows() / 5;
+  auto row_offset = std::uniform_int_distribution<>(0, 100);
   uint16_t retries = 0;
   do {
-    addr = DRAMAddr(bank, row_offset_dist(engine), 0);
+    addr = DRAMAddr(bank, area(engine) * area_size + row_offset(engine), 0);
     assert(++retries < 512);
   } while(!address_valid(addr.to_virt()));
   return addr;
@@ -106,6 +109,8 @@ std::vector<DRAMAddr> PatternBuilder::create(PatternConfig config) {
     i++;
   }
 
+  std::shuffle(addresses.begin(), addresses.end(), engine); 
+
   return addresses;
 }
 
@@ -146,62 +151,11 @@ Pattern PatternBuilder::translate(Pattern pattern, size_t bank_offset, size_t ro
 }
 
 size_t PatternBuilder::full_alloc_check() {
-  size_t s = DRAMConfig::get().row_to_row_offset();
-  void* compare_data = malloc(sizeof(char) * s);
-  init_pattern pattern = allocation.get_init_pattern();
-  char expected_value = allocation.get_fill_value(pattern); 
-
-  size_t flips = 0;
-
-  Allocation::initialize(pattern, compare_data, sizeof(char) * s);
-
-  char *start = (char *)allocation.get_start_address();
-  while(start < allocation.get_end_address()) {
-    size_t alloc_size = s;
-    if((char *)allocation.get_end_address() - start < alloc_size) {
-      alloc_size = (char *)allocation.get_end_address() - start;
-    }
-    if(memcmp(start, compare_data, alloc_size) != 0) {
-      printf("victim page %p contains a flip. Starting detailed check.\n", start);
-      for(size_t j = 0; j < s; j++) {
-        char v = *(start + j);
-        if(v == expected_value) {
-          continue;
-        }
-        for(int k = 0; k < 8; k++) {
-          char mask = 1 << k;
-          if((v & mask) != (expected_value & mask)) {
-            printf("FLIP: victim row: %p, byte offset: %lu, bit position in byte: %d, flipped from %b to %b, byte value %b instead of %b",
-                   start, 
-                   j, 
-                   k, 
-                   expected_value & mask,
-                   v & mask,
-                   v,
-                   expected_value
-            );
-            flips++;
-          }
-        }
-        *(start + j) = expected_value;
-      }
-    }
-  } 
-
-  free(compare_data);
-
-  return flips;
+  return allocation.find_flips((void *)allocation.get_start_address(), (void *)allocation.get_end_address());
 }
 
 size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
-  size_t s = DRAMConfig::get().row_to_row_offset();
-  void* compare_data = malloc(sizeof(char) * s);
-  init_pattern pattern = allocation.get_init_pattern();
-  char expected_value = allocation.get_fill_value(pattern); 
-
   size_t flips = 0;
-
-  Allocation::initialize(pattern, compare_data, sizeof(char) * s);
 
   std::set<void *> checked_addrs;
 
@@ -220,45 +174,9 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
         continue;
       }
 
-      size_t alloc_size = s;
-
-      if(!allocation.is_valid(victim_addr + s)) {
-        size_t max_size = (char *)allocation.get_end_address() - victim_addr;
-        printf("warning: victim can't be checked for flips. Row size is %lu but only %lu bytes are allocated to us.\n", alloc_size, max_size);
-        alloc_size = max_size;
-      }
-      
-      checked_addrs.insert(victim_addr);
-
-      //if the entire row matches, there is no need to do further analysis for this victim.
-      if(memcmp(victim_addr, compare_data, alloc_size) != 0) {
-        printf("%s contains a flip. Starting detailed check.\n", victim.to_string().c_str());
-        for(size_t j = 0; j < s; j++) {
-          for(int k = 0; k < 8; k++) {
-            char v = *(((char *)victim_addr) + j);
-            if(v == expected_value) {
-              continue;
-            }
-            char mask = 1 << k;
-            if((v & mask) != (expected_value & mask)) {
-              printf("FLIP: victim row: %s, byte offset: %lu, bit position in byte: %d, flipped from %b to %b, byte value %b instead of %b",
-                     victim.to_string().c_str(), 
-                     j, 
-                     k, 
-                     expected_value & mask,
-                     v & mask,
-                     v,
-                     expected_value
-              );
-              flips++;
-            }
-          }
-        }
-      }
+      flips += allocation.find_flips(victim_addr);
     }
   }
-
-  free(compare_data);
 
   return flips;
 }

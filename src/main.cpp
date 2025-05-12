@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
   printf("creating allocation...\n");
   alloc.allocate();
   printf("allocated %lu bytes of memory.\n", alloc.get_size());
-  alloc.initialize(init_pattern::FENCE);
+  alloc.initialize();
   printf("initialized memory with strategy FENCE.\n");
   DRAMAddr::initialize_mapping(0, (volatile char *)alloc.get_start_address());
 
@@ -48,4 +48,6 @@ int main(int argc, char* argv[]) {
   printf("initialized location parameter to %lu.\n", args.locations);
   printf("starting hammering run!\n");
   std::vector<FuzzReport> reports = suite.auto_fuzz(args.locations, args.runtime_limit);
+  size_t full_check = builder.full_alloc_check();
+  printf("full check found %lu flips.\n", full_check);
 }
