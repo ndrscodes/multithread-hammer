@@ -74,7 +74,7 @@ size_t Allocation::find_flips(void *start, void *end) {
       page_size = (char *)get_end_address() - start_c;
     }
 
-    int *compare_page = (int *)malloc(page_size);
+    char *compare_page = (char *)malloc(page_size);
     
     size_t seed = (start_c - (char *)get_start_address()) / page_size;
     srand(seed);
