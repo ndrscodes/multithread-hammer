@@ -5,6 +5,10 @@
 #include <vector>
 typedef std::vector<DRAMAddr> Pattern;
 typedef std::pair<size_t, std::vector<DRAMAddr>> PatternPair;
+typedef struct {
+  float_t distance;
+  size_t size;
+} Aggressor;
 
 const size_t MIN_ROW_OFFSET = 0;
 const size_t MAX_ROW_OFFSET = 1024;
@@ -26,6 +30,7 @@ class PatternBuilder {
     std::uniform_int_distribution<> bank_offset_dist;
     std::uniform_int_distribution<> agg_count_dist;
     bool address_valid(void *address);
+    size_t fill_abstract_pattern(std::vector<Aggressor> &pattern);
   public:
     PatternBuilder(Allocation &allocation);
     Pattern create();
@@ -40,4 +45,5 @@ class PatternBuilder {
     DRAMAddr get_random_address();
     size_t check(std::vector<DRAMAddr> aggressors);
     size_t full_alloc_check();
+    Pattern create_advanced_pattern(size_t bank);
 };

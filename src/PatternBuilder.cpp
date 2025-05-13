@@ -9,6 +9,7 @@
 #include <vector>
 
 const size_t VICTIM_ROWS = 5;
+const size_t MAX_DIST = 100;
 
 PatternBuilder::PatternBuilder(Allocation &allocation) : allocation(allocation) {
   engine = std::mt19937();
@@ -47,6 +48,63 @@ PatternConfig PatternBuilder::create_random_config(size_t bank) {
     .root_bank = bank
   };
   return config;
+}
+
+size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors) {
+  std::uniform_int_distribution<> slot_dist(2, MAX_DIST);
+  std::uniform_real_distribution<> distance_dist(1, MAX_DIST / 2.);
+  int slots = slot_dist(engine);
+  size_t res = (size_t) slots;
+  do {
+    float_t distance = distance_dist(engine);
+    slots /= (distance + 1);
+    aggressors.push_back({
+      .distance = distance,
+    });
+  } while(slots > 0);
+  return res;
+}
+
+Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
+  std::vector<Aggressor> abstract_pattern;
+  size_t slots = fill_abstract_pattern(abstract_pattern);
+  Pattern pattern(slots);
+  std::vector<bool> occupations(slots);
+  size_t start = 0;
+  for(auto agg : abstract_pattern) {
+    start++;
+    
+    DRAMAddr aggressor;
+    if(start % 2 == 1) {
+      aggressor = pattern[start - 1];
+      aggressor.add_inplace(0, 2, 0);
+      if(!address_valid(aggressor.to_virt())) {
+        aggressor = get_random_address();
+      }
+    }
+
+    int distance_modifier = 0;
+    for(int i = start; i < slots; i += agg.distance - distance_modifier) {
+      if(occupations[i]) {
+        i = i - agg.distance + 1;
+        if(distance_modifier + 1 < agg.distance) {
+          distance_modifier++;
+        }
+        continue;
+      }
+      distance_modifier = 0;
+      pattern[i] = aggressor;
+      occupations[i] = true;
+    }
+  }
+  for(int i = 0; i < slots; i++) {
+    if(occupations[i]) {
+      continue;
+    }
+    pattern[i] = get_random_address(bank);
+  }
+
+  return pattern;
 }
 
 std::vector<DRAMAddr> PatternBuilder::create() {
@@ -118,7 +176,7 @@ std::vector<Pattern> PatternBuilder::create_multiple_banks(size_t banks) {
   std::vector<Pattern> patterns(banks);
   size_t bank_start = bank_offset_dist(engine);
   for(size_t i = 0; i < banks; i++) {
-    patterns[i] = create((bank_start + i) % DRAMConfig::get().banks());
+    patterns[i] = create_advanced_pattern((bank_start + i) % DRAMConfig::get().banks());
   }
   return patterns;
 }
