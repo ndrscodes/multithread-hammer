@@ -60,7 +60,8 @@ bool Allocation::is_valid(void *address) {
 size_t Allocation::find_flips(void *start_addr, void *end_addr) {
   size_t init_pagesize = DRAMConfig::get().row_to_row_offset();
   char *start_c = (char *)((uint64_t)start_addr / init_pagesize * init_pagesize);
-  char *end_c = (char *)((uint64_t)end_addr / init_pagesize * init_pagesize);
+  char *end_c = start_c + ((char *)start_addr - (char *)end_addr);
+  end_c = (char *)((uint64_t)end_c / init_pagesize * init_pagesize);
 
   size_t pages = (end_c - start_c) / init_pagesize;
   size_t flips = 0;
@@ -108,7 +109,7 @@ size_t Allocation::find_flips(void *start_addr, void *end_addr) {
         }
       }
     }
-
+    free(compare_page);
     start_c += init_pagesize;
   }
 
