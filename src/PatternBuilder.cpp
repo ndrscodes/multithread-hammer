@@ -53,12 +53,12 @@ PatternConfig PatternBuilder::create_random_config(size_t bank) {
 
 size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors) {
   std::uniform_int_distribution<> slot_dist(2, MAX_DIST);
-  std::uniform_real_distribution<> distance_dist(1.5, MAX_DIST / 2.);
   int slots = slot_dist(engine);
   size_t res = (size_t) slots;
+  std::uniform_real_distribution<> distance_dist(1, slots / 2.);
   do {
     float_t distance = distance_dist(engine);
-    slots /= (distance + 1);
+    slots -= slots / (distance + 1);
     aggressors.push_back({
       .distance = distance,
     });
@@ -86,7 +86,7 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
     }
 
     uint16_t distance_modifier = 0;
-    for(float i = start; i < slots; i += agg.distance - distance_modifier) {
+    for(float i = start; i < slots; i += agg.distance) {
       if(occupations[(int)i]) {
         //increases the frequency if we were not able to place the aggressor in the pattern in any iteration
         if(agg.distance - 1 > 1) {
