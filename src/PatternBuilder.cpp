@@ -3,6 +3,7 @@
 #include "DRAMConfig.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <random>
 #include <set>
@@ -52,7 +53,7 @@ PatternConfig PatternBuilder::create_random_config(size_t bank) {
 
 size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors) {
   std::uniform_int_distribution<> slot_dist(2, MAX_DIST);
-  std::uniform_real_distribution<> distance_dist(1, MAX_DIST / 2.);
+  std::uniform_real_distribution<> distance_dist(1.5, MAX_DIST / 2.);
   int slots = slot_dist(engine);
   size_t res = (size_t) slots;
   do {
@@ -72,30 +73,40 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
   std::vector<bool> occupations(slots);
   size_t start = 0;
   for(auto agg : abstract_pattern) {
-    start++;
     
     DRAMAddr aggressor;
     if(start % 2 == 1) {
       aggressor = pattern[start - 1];
       aggressor.add_inplace(0, 2, 0);
       if(!address_valid(aggressor.to_virt())) {
-        aggressor = get_random_address();
+        aggressor = get_random_address(bank);
       }
+    } else {
+      aggressor = get_random_address(bank);
     }
 
-    int distance_modifier = 0;
-    for(int i = start; i < slots; i += agg.distance - distance_modifier) {
-      if(occupations[i]) {
-        i = i - agg.distance + 1;
-        if(distance_modifier + 1 < agg.distance) {
-          distance_modifier++;
+    uint16_t distance_modifier = 0;
+    for(float i = start; i < slots; i += agg.distance - distance_modifier) {
+      if(occupations[(int)i]) {
+        //increases the frequency if we were not able to place the aggressor in the pattern in any iteration
+        if(agg.distance - 1 > 1) {
+          agg.distance--;
         }
+        distance_modifier++;
+        //this places us to the adjacent slot in the next iteration
+        i = i - agg.distance + 1;
         continue;
       }
-      distance_modifier = 0;
-      pattern[i] = aggressor;
-      occupations[i] = true;
+      //slowly restore the frequency if we were able to place
+      if(distance_modifier > 0) {
+        agg.distance++;
+        distance_modifier--;
+      }
+      pattern[(int)i] = aggressor;
+      occupations[(int)i] = true;
     }
+    
+    start++;
   }
   for(int i = 0; i < slots; i++) {
     if(occupations[i]) {
