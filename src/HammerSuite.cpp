@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstddef>
 #include <ctime>
+#include <emmintrin.h>
 #include <random>
 #include <thread>
 #include <x86intrin.h>
@@ -117,7 +118,9 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
       _mm_clflushopt((void *)virt_addrs[j]);
     }
     for(size_t j = 0; j < s; j++) {
+      _mm_lfence();
       *virt_addrs[j];
+      _mm_lfence();
     }
   }
 }
