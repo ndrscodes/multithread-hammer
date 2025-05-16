@@ -2,6 +2,7 @@
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
 #include <cassert>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <sys/mman.h>
@@ -17,7 +18,7 @@ Allocation::Allocation() {
 
 void Allocation::initialize() {
   size_t page_size = getpagesize();
-  size_t pages = ((int *)get_end_address() - (int *)get_start_address()) / page_size;
+  size_t pages = ((uint64_t)get_end_address() - (uint64_t)get_start_address()) / page_size;
   for(size_t i = 0; i < pages; i++) {
     srand(i);
     for(size_t j = 0; j < page_size / sizeof(int); j++) {
@@ -64,7 +65,7 @@ size_t Allocation::find_flips(void *start_addr, void *end_addr) {
   int *end_c = start_c + ((int *)end_addr - (int *)start_addr);
   end_c = (int *)((uint64_t)end_c / init_pagesize * init_pagesize);
 
-  size_t pages = (end_c - start_c) / init_pagesize;
+  size_t pages = ((uint64_t)end_c - (uint64_t)start_c) / init_pagesize;
   size_t flips = 0;
   for(size_t p = 0; p < pages; p++) {
     if(start_c > (int *)get_end_address()) {
@@ -72,7 +73,7 @@ size_t Allocation::find_flips(void *start_addr, void *end_addr) {
     }
 
     size_t page_size = init_pagesize;
-    if(start_c + page_size > get_end_address()) {
+    if((uint64_t)start_c + page_size > (uint64_t)get_end_address()) {
       page_size = (int *)get_end_address() - start_c;
     }
 
@@ -111,7 +112,7 @@ size_t Allocation::find_flips(void *start_addr, void *end_addr) {
       }
     }
     free(compare_page);
-    start_c += init_pagesize;
+    start_c = (int *)((uint64_t)start_c + init_pagesize);
   }
 
   return flips;
