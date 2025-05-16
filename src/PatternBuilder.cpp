@@ -50,10 +50,10 @@ PatternConfig PatternBuilder::create_random_config(size_t bank) {
 }
 
 size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors) {
-  std::uniform_int_distribution<> slot_dist(2, MAX_DIST);
+  std::uniform_int_distribution<> slot_dist(5, MAX_DIST);
   int slots = slot_dist(engine);
   size_t res = (size_t) slots;
-  std::uniform_real_distribution<> distance_dist(1, slots / 2.);
+  std::uniform_real_distribution<> distance_dist(2, slots / 5.);
   do {
     float_t distance = distance_dist(engine);
     slots -= slots / (distance + 1);
@@ -107,11 +107,17 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
     
     start++;
   }
+  
+  std::uniform_int_distribution<> slot_dist(0, slots - 1);
   for(int i = 0; i < slots; i++) {
     if(occupations[i]) {
       continue;
     }
-    pattern[i] = get_random_address(bank);
+    int idx = slot_dist(engine);
+    while(!occupations[idx]) {
+      idx = slot_dist(engine);
+    }
+    pattern[i] = pattern[idx];
   }
 
   return pattern;
