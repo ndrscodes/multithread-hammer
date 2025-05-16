@@ -73,7 +73,8 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
   for(auto agg : abstract_pattern) {
     
     DRAMAddr aggressor;
-    if(start % 2 == 1) {
+    //on every 4th aggressor, we try to build a double-sided pattern.
+    if(start % 4 == 1) {
       aggressor = pattern[start - 1];
       aggressor.add_inplace(0, 2, 0);
       if(!address_valid(aggressor.to_virt())) {
