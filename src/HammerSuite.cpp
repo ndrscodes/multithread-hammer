@@ -14,7 +14,7 @@
 #include "Timer.hpp"
 #define SYNC_TO_REF FALSE
 
-const size_t ACTIVATIONS = 8000000;
+const size_t ACTIVATIONS = 6000000;
 
 HammerSuite::HammerSuite(PatternBuilder &builder) : builder(builder){}
 

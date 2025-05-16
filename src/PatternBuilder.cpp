@@ -9,8 +9,8 @@
 #include <set>
 #include <vector>
 
-const size_t VICTIM_ROWS = 5;
-const size_t MAX_DIST = 100;
+const size_t VICTIM_ROWS = 7;
+const size_t MAX_DIST = 1000;
 
 PatternBuilder::PatternBuilder(Allocation &allocation) : allocation(allocation) {
   engine = std::mt19937();
