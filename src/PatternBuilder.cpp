@@ -109,6 +109,7 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
   }
   
   std::uniform_int_distribution<> slot_dist(0, slots - 1);
+  int replacements = 0;
   for(int i = 0; i < slots; i++) {
     if(occupations[i]) {
       continue;
@@ -118,7 +119,10 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
       idx = slot_dist(engine);
     }
     pattern[i] = pattern[idx];
+    replacements++;
   }
+
+  printf("\ncreated pattern with %lu slots and %lu aggressors. Used %d replacements for unfilled slots.\n", slots, abstract_pattern.size(), replacements);
 
   return pattern;
 }
@@ -252,6 +256,8 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
       checked_addrs.insert(victim_addr);
     }
   }
+
+  printf("checked %lu distinct addresses for flips.\n", checked_addrs.size());
 
   return flips;
 }
