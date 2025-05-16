@@ -20,7 +20,7 @@ void Allocation::initialize() {
   size_t pages = ((int *)get_end_address() - (int *)get_start_address()) / page_size;
   for(size_t i = 0; i < pages; i++) {
     srand(i);
-    for(size_t j = 0; j < page_size; j++) {
+    for(size_t j = 0; j < page_size / sizeof(int); j++) {
       int *target = (int *)start + i * page_size + j;
       if(target > (int *)get_end_address()) {
         break;
@@ -81,7 +81,7 @@ size_t Allocation::find_flips(void *start_addr, void *end_addr) {
     size_t seed = (start_c - (int *)start) / init_pagesize;
     srand(seed);
     
-    for(size_t i = 0; i < page_size; i++) {
+    for(size_t i = 0; i < page_size / sizeof(int); i++) {
       compare_page[i] = rand();
     }
 
