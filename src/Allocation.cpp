@@ -5,8 +5,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <immintrin.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <x86intrin.h>
 #define GB(n) 1024*1024*1024*n
 
 
@@ -22,7 +24,7 @@ void Allocation::initialize() {
   for(size_t i = 0; i < pages; i++) {
     srand(i);
     for(size_t j = 0; j < page_size / sizeof(int); j++) {
-      int *target = (int *)start + i * page_size + j;
+      int *target = (int *)start + i * (page_size / sizeof(int)) + j;
       if(target > (int *)get_end_address()) {
         break;
       }
@@ -61,35 +63,40 @@ bool Allocation::is_valid(void *address) {
 
 size_t Allocation::find_flips(void *start_addr, void *end_addr) {
   size_t init_pagesize = getpagesize();
-  int *start_c = (int *)((uint64_t)start_addr / init_pagesize * init_pagesize);
+  int *start_c = (int *)(((uint64_t)start_addr / init_pagesize) * init_pagesize);
   int *end_c = start_c + ((int *)end_addr - (int *)start_addr);
-  end_c = (int *)((uint64_t)end_c / init_pagesize * init_pagesize);
+  end_c = (int *)(((uint64_t)end_c / init_pagesize) * init_pagesize);
 
   size_t pages = ((uint64_t)end_c - (uint64_t)start_c) / init_pagesize;
   size_t flips = 0;
   for(size_t p = 0; p < pages; p++) {
-    if(start_c > (int *)get_end_address()) {
-      return 0;
+    if(start_c >= (int *)get_end_address()) {
+      break; //we don't need to continue here since all following pages will be above the end address.
     }
 
     size_t page_size = init_pagesize;
-    if((uint64_t)start_c + page_size > (uint64_t)get_end_address()) {
+    if((uint64_t)start_c + page_size >= (uint64_t)get_end_address()) {
       page_size = (int *)get_end_address() - start_c;
     }
 
     int *compare_page = (int *)malloc(page_size);
    
-    size_t seed = (start_c - (int *)start) / init_pagesize;
+    size_t seed = ((uint64_t)start_c - (uint64_t)start) / init_pagesize;
     srand(seed);
     
     for(size_t i = 0; i < page_size / sizeof(int); i++) {
       compare_page[i] = rand();
     }
 
+    _mm_clflushopt(start_c);
+    _mm_mfence();
+
     if(memcmp(compare_page, start_c, page_size) != 0) {
       printf("Flip detected on page %lu. Analyzing.\n", p);
       for(size_t i = 0; i < page_size / sizeof(int); i++) {
         int v = compare_page[i];
+        _mm_clflushopt(start_c + i);
+        _mm_mfence();
         int actual = *(start_c + i);
         if(v == actual) {
           continue;

@@ -81,7 +81,7 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
 
 std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t runtime_in_seconds) {
   std::mt19937 random;
-  std::uniform_int_distribution<> location_dist(1, DRAMConfig::get().banks() * 0.7); // at most 70% of banks will be used per pattern
+  std::uniform_int_distribution<> location_dist(1, 3); // at most 3 will be used per pattern
   std::vector<FuzzReport> reports;
   auto start = std::chrono::steady_clock::now();
   auto max_duration = std::chrono::seconds(runtime_in_seconds);
@@ -107,9 +107,17 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
     virt_addrs[i] = (volatile char *)pattern.at(i).to_virt();
   }
 
+  //try to reset the sampler
+  for(int i = 0; i < 200000; i++) {
+    volatile char *random_addr = (volatile char *)builder.get_random_address().to_virt();
+    *random_addr;
+  }
+  _mm_mfence();
+
   iterations /= s;
 
   start_barrier.arrive_and_wait();
+  printf("thread %lu is starting a hammering run for %lu addresses using %lu iterations.\n", id, s, iterations);
 #if SYNC_TO_REF
   timer.wait_for_refresh(pattern[0].actual_bank());
 #endif
@@ -118,9 +126,8 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
       _mm_clflushopt((void *)virt_addrs[j]);
     }
     for(size_t j = 0; j < s; j++) {
-      _mm_lfence();
+      _mm_mfence();
       *virt_addrs[j];
-      _mm_lfence();
     }
   }
 }
