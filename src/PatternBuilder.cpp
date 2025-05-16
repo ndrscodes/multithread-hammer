@@ -24,17 +24,15 @@ bool PatternBuilder::address_valid(void *address) {
 }
 
 DRAMAddr PatternBuilder::get_random_address() {
-  return get_random_address(0);
+  return get_random_address(bank_offset_dist(engine));
 }
 
 DRAMAddr PatternBuilder::get_random_address(size_t bank) {
   DRAMAddr addr;
-  auto area = std::uniform_int_distribution<>(0, 4);
-  size_t area_size = DRAMConfig::get().rows() / 5;
-  auto row_offset = std::uniform_int_distribution<>(0, 100);
+  auto row_offset = std::uniform_int_distribution<>(0, DRAMConfig::get().rows());
   uint16_t retries = 0;
   do {
-    addr = DRAMAddr(bank, area(engine) * area_size + row_offset(engine), 0);
+    addr = DRAMAddr(bank, row_offset(engine), 0);
     assert(++retries < 512);
   } while(!address_valid(addr.to_virt()));
   return addr;
