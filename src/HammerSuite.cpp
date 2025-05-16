@@ -108,7 +108,7 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
   }
 
   //try to reset the sampler
-  for(int i = 0; i < 200000; i++) {
+  for(int i = 0; i < 100000; i++) {
     volatile char *random_addr = (volatile char *)builder.get_random_address().to_virt();
     *random_addr;
   }

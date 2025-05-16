@@ -244,6 +244,7 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
       }
 
       flips += allocation.find_flips(victim_addr);
+      checked_addrs.insert(victim_addr);
     }
   }
 
