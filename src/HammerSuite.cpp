@@ -20,7 +20,7 @@
 #include "Timer.hpp"
 #define SYNC_TO_REF 1
 
-static size_t ACTIVATIONS = 6000000;
+size_t ACTIVATIONS = 6000000;
 
 HammerSuite::HammerSuite(PatternBuilder &builder) : builder(builder){}
 
@@ -121,7 +121,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
   return reports;
 }
 
-void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, std::shared_mutex &mutex, uint64_t &timing, Timer &timer) {
+void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, std::mutex &mutex, uint64_t &timing, Timer &timer) {
   //this is likely faster than an std::vector because we can skip the size checks and allocation going on...
   //the processor is likely to cache this array so the lookup will be more or less instant
   size_t s = pattern.size();
@@ -139,7 +139,7 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
 
   iterations /= s;
 
-  std::unique_lock<std::shared_mutex> lock(mutex);
+  std::unique_lock<std::mutex> lock(mutex);
   lock.unlock();
 
   start_barrier.arrive_and_wait();
