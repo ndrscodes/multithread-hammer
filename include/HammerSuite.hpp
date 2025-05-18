@@ -1,17 +1,19 @@
 #pragma once
 #include <barrier>
+#include <cstdint>
 #include <map>
+#include <shared_mutex>
 #include <vector>
 #include "FuzzReport.hpp"
 #include "PatternBuilder.hpp"
-#include "Timer.hpp"
 #include "LocationReport.hpp"
+#include "Timer.hpp"
 
 class HammerSuite {
 private:
   size_t current_pattern_id;
   std::map<size_t, Pattern> patterns;
-  void hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, Timer &timer);
+  void hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, std::shared_mutex &mutex, uint64_t &timing, Timer &timer);
   PatternBuilder &builder;
 public:
   HammerSuite(PatternBuilder &builder);

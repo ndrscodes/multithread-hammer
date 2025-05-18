@@ -29,6 +29,7 @@ class PatternBuilder {
     std::uniform_int_distribution<> row_offset_dist;
     std::uniform_int_distribution<> bank_offset_dist;
     std::uniform_int_distribution<> agg_count_dist;
+    size_t max_slots = 1000;
     bool address_valid(void *address);
     size_t fill_abstract_pattern(std::vector<Aggressor> &pattern);
   public:
@@ -46,4 +47,6 @@ class PatternBuilder {
     size_t check(std::vector<DRAMAddr> aggressors);
     size_t full_alloc_check();
     Pattern create_advanced_pattern(size_t bank);
+    size_t get_max_pattern_length();
+    void set_max_pattern_length(size_t length);
 };

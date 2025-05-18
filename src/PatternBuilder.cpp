@@ -3,6 +3,7 @@
 #include "DRAMConfig.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <random>
@@ -49,8 +50,16 @@ PatternConfig PatternBuilder::create_random_config(size_t bank) {
   return config;
 }
 
+size_t PatternBuilder::get_max_pattern_length() {
+  return max_slots;
+}
+
+void PatternBuilder::set_max_pattern_length(size_t length) {
+  max_slots = length;
+}
+
 size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors) {
-  std::uniform_int_distribution<> slot_dist(5, MAX_DIST);
+  std::uniform_int_distribution<> slot_dist(5, max_slots);
   int slots = slot_dist(engine);
   size_t res = (size_t) slots;
   std::uniform_real_distribution<> distance_dist(2, slots / 5.);
