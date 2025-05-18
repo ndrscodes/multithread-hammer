@@ -7,10 +7,8 @@
 #include <cstdlib>
 #include <ctime>
 #include <emmintrin.h>
-#include <iterator>
 #include <mutex>
 #include <random>
-#include <shared_mutex>
 #include <thread>
 #include <vector>
 #include <x86intrin.h>

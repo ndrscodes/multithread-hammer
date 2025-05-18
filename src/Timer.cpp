@@ -67,14 +67,14 @@ uint64_t Timer::wait_for_refresh(size_t bank) {
   volatile char *address = (volatile char *)builder.get_random_address(bank).to_virt();
   do {
     timing = measure(address).timing;
-    if(timing > refresh_threshold * 2) {
+    if(timing > refresh_threshold * 3) {
       printf("[WARN] retry %lu: we probably just missed a refresh since we detected a timing spike (%lu vs threshold of %lu)\n", 
              i, 
              timing, 
              refresh_threshold);
     }
     i++;
-  } while(timing < refresh_threshold || timing > refresh_threshold * 2);
+  } while(timing < refresh_threshold || timing > refresh_threshold * 3);
 
   return i;
 }
