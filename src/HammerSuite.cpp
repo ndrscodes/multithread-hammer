@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <ctime>
 #include <emmintrin.h>
-#include <mutex>
 #include <random>
 #include <thread>
 #include <vector>
@@ -28,7 +27,6 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
 
   size_t thread_id = 0;
   std::vector<uint64_t> timings(patterns.size());
-  std::mutex mutex;
   Timer timer(builder);
   for(int i = 0; i < patterns.size(); i++) {
     printf("starting thread for pattern with %lu addresses on bank %lu...\n", patterns[i].size(), patterns[i][0].actual_bank());
@@ -44,7 +42,6 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
       std::ref(patterns[i]), 
       ACTIVATIONS, 
       std::ref(barrier), 
-      std::ref(mutex),
       std::ref(timings[i]),
       std::ref(timer)
     );
@@ -117,7 +114,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
   return reports;
 }
 
-void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, std::mutex &mutex, uint64_t &timing, Timer &timer) {
+void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer) {
   //this is likely faster than an std::vector because we can skip the size checks and allocation going on...
   //the processor is likely to cache this array so the lookup will be more or less instant
   size_t s = pattern.size();
@@ -134,9 +131,6 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
   _mm_mfence();
 
   iterations /= s;
-
-  std::unique_lock<std::mutex> lock(mutex);
-  lock.unlock();
 
   start_barrier.arrive_and_wait();
   printf("thread %lu is starting a hammering run for %lu addresses using %lu iterations.\n", id, s, iterations);
