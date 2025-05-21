@@ -32,6 +32,5 @@
 *.app
 
 .cache/
-build/obj/
-build/main
+build/
 compile_commands.json
