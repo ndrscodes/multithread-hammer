@@ -15,6 +15,7 @@
 #include "LocationReport.hpp"
 #include "PatternBuilder.hpp"
 #include "Timer.hpp"
+#include "Jitter.hpp"
 #define SYNC_TO_REF 1
 
 size_t ACTIVATIONS = 6000000;
@@ -115,13 +116,11 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
 }
 
 void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer) {
-  //this is likely faster than an std::vector because we can skip the size checks and allocation going on...
-  //the processor is likely to cache this array so the lookup will be more or less instant
-  size_t s = pattern.size();
-  volatile char **virt_addrs = (volatile char **)malloc(sizeof(volatile char *) * s);
-  for(size_t i = 0; i < s; i++) {
-    virt_addrs[i] = (volatile char *)pattern.at(i).to_virt();
-  }
+
+  Jitter jitter;
+  size_t actual_iterations = iterations / pattern.size();
+
+  HammerFunc fn = jitter.jit(pattern, actual_iterations);
 
   //try to reset the sampler
   for(int i = 0; i < 100000; i++) {
@@ -130,23 +129,13 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
   }
   _mm_mfence();
 
-  iterations /= s;
-
   start_barrier.arrive_and_wait();
-  printf("thread %lu is starting a hammering run for %lu addresses using %lu iterations.\n", id, s, iterations);
+  printf("thread %lu is starting a hammering run for %lu addresses using %lu iterations.\n", id, pattern.size(), actual_iterations);
 #if SYNC_TO_REF
   timer.wait_for_refresh(pattern[0].actual_bank());
 #endif
   uint64_t start = timer.current_timestamp();
-  for(size_t i = 0; i < iterations; i++) {
-    for(size_t j = 0; j < s; j++) {
-      _mm_clflushopt((void *)virt_addrs[j]);
-    }
-    for(size_t j = 0; j < s; j++) {
-      _mm_mfence();
-      *virt_addrs[j];
-    }
-  }
+  fn();
   uint64_t end = timer.current_timestamp();
   timing = end - start;
 }
