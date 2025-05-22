@@ -12,6 +12,7 @@ const size_t SERIALIZE_EACH_N = 2;
 
 HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t repetitions) {
   asmjit::CodeHolder h;
+  h.init(rt.environment(), rt.cpuFeatures());
   asmjit::x86::Assembler assembler(&h);
   std::vector<volatile char *> ptrs(addresses.size());
   for(int i = 0; i < addresses.size(); i++) {
@@ -23,12 +24,14 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t repetitions) {
   for(int i = 0; i < repetitions; i++) {
     for(int j = 0; j < ptrs.size(); j++) {
       //move the pointer to rax
-      assembler.mov(asmjit::x86::rax, (uint64_t)ptrs[i]);
+      assembler.mov(asmjit::x86::rax, (uint64_t)ptrs[j]);
       //we only need to flush addresses which have already been accessed
       bool flushed = false;
       if(used_ptrs.contains(ptrs[j])) {
         //flush the corresponding line from the cache
         assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+      } else {
+        used_ptrs.insert(ptrs[j]);
       }
       //serialize instructions on every nth access;
       if(j % SERIALIZE_EACH_N == 1) {
@@ -38,6 +41,8 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t repetitions) {
       assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
     }
   }
+
+  assembler.ret();
 
   asmjit::Error error = rt.add(&fn, &h);
   if(error) {
