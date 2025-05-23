@@ -20,8 +20,8 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
   assembler.bind(start);
  
   //first flush it from the cache
-  assembler.mov(asmjit::x86::eax, sync_addr);
-  assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::eax));
+  assembler.mov(asmjit::x86::rax, sync_addr);
+  assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
   
   assembler.lfence();
   //stores cycles in EAX
@@ -32,8 +32,8 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
   assembler.mov(asmjit::x86::ecx, asmjit::x86::eax);
   
   //now we hammer
-  assembler.mov(asmjit::x86::eax, sync_addr);
-  assembler.mov(asmjit::x86::edx, asmjit::x86::ptr(asmjit::x86::eax));
+  assembler.mov(asmjit::x86::rax, sync_addr);
+  assembler.mov(asmjit::x86::rdx, asmjit::x86::ptr(asmjit::x86::rax));
 
   //take another measurement
   assembler.lfence();
