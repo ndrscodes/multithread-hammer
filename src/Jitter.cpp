@@ -60,7 +60,7 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t repetitions) {
   std::set<volatile char *> used_ptrs;
 
   used_ptrs.insert(ptrs.front()); 
-  jit_ref_sync(assembler, addresses.front());
+  jit_ref_sync(assembler, addresses.back());
 
   //we should mostly use rax and rcx as they are caller-saved.
   for(int i = 0; i < repetitions; i++) {
@@ -83,6 +83,8 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t repetitions) {
       assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
     }
   }
+
+  jit_ref_sync(assembler, addresses.back());
 
   assembler.ret();
 
