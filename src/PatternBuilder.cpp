@@ -24,6 +24,10 @@ bool PatternBuilder::address_valid(void *address) {
   return allocation.is_valid(address);
 }
 
+bool PatternBuilder::address_valid(DRAMAddr address) {
+  return address_valid(address.to_virt());
+}
+
 DRAMAddr PatternBuilder::get_random_address() {
   return get_random_address(bank_offset_dist(engine));
 }
@@ -66,6 +70,9 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors)
   do {
     float_t distance = distance_dist(engine);
     slots -= slots / (distance + 1);
+    if(slots < 0) {
+      break;
+    }
     aggressors.push_back({
       .distance = distance,
     });

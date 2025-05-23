@@ -10,6 +10,44 @@
 
 const size_t SERIALIZE_EACH_N = 2;
 
+Jitter::Jitter(size_t refresh_threshold) {
+  this->refresh_threshold = refresh_threshold;
+}
+
+void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank) {
+  auto start = assembler.newLabel();
+  uint64_t sync_addr = (uint64_t)sync_bank.to_virt();
+  assembler.bind(start);
+ 
+  //first flush it from the cache
+  assembler.mov(asmjit::x86::eax, sync_addr);
+  assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::eax));
+  
+  assembler.lfence();
+  //stores cycles in EAX
+  assembler.rdtscp();
+  assembler.lfence();
+ 
+  //store cycles in ECX for comparing it later
+  assembler.mov(asmjit::x86::ecx, asmjit::x86::eax);
+  
+  //now we hammer
+  assembler.mov(asmjit::x86::eax, sync_addr);
+  assembler.mov(asmjit::x86::edx, asmjit::x86::ptr(asmjit::x86::eax));
+
+  //take another measurement
+  assembler.lfence();
+  assembler.rdtscp();
+  assembler.lfence();
+
+  //subtract the previous timestamp from the current
+  assembler.sub(asmjit::x86::eax, asmjit::x86::ecx);
+
+  //we jump to start if we were below refresh_threshold cycles
+  assembler.cmp(asmjit::x86::edx, refresh_threshold);
+  assembler.jb(start);
+}
+
 HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t repetitions) {
   asmjit::CodeHolder h;
   h.init(rt.environment(), rt.cpuFeatures());
@@ -19,8 +57,12 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t repetitions) {
     ptrs[i] = (volatile char *)addresses[i].to_virt();
   }
 
-  //we should mostly use rax and rcx as they are caller-saved.
   std::set<volatile char *> used_ptrs;
+
+  used_ptrs.insert(ptrs.front()); 
+  jit_ref_sync(assembler, addresses.front());
+
+  //we should mostly use rax and rcx as they are caller-saved.
   for(int i = 0; i < repetitions; i++) {
     for(int j = 0; j < ptrs.size(); j++) {
       //move the pointer to rax

@@ -49,4 +49,5 @@ class PatternBuilder {
     Pattern create_advanced_pattern(size_t bank);
     size_t get_max_pattern_length();
     void set_max_pattern_length(size_t length);
+    bool address_valid(DRAMAddr address);
 };

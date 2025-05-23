@@ -98,7 +98,7 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
 
 std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t runtime_in_seconds) {
   std::mt19937 random;
-  std::uniform_int_distribution<> location_dist(1, 3); // at most 3 will be used per pattern
+  std::uniform_int_distribution<> location_dist(1, 2); // at most 2 will be used per pattern
   std::vector<FuzzReport> reports;
   auto start = std::chrono::steady_clock::now();
   auto max_duration = std::chrono::seconds(runtime_in_seconds);
@@ -116,8 +116,15 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
 }
 
 void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer) {
+  for(int i = 0; i < pattern.size() / 7; i += 2) {
+    pattern.insert(pattern.begin(), builder.get_random_address());
+    DRAMAddr next = pattern.front().add(0, 2, 0);
+    if(builder.address_valid(next)) {
+      pattern.insert(pattern.begin(), next);
+    }
+  }
 
-  Jitter jitter;
+  Jitter jitter(timer.get_refresh_threshold());
   size_t actual_iterations = iterations / pattern.size();
 
   HammerFunc fn = jitter.jit(pattern, actual_iterations);
