@@ -111,7 +111,7 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activati
   int slots = slot_dist(engine);
   int iterations = max_activations / slots;
   size_t start = 0;
-  std::vector<int> full_pattern(max_activations, -1);
+  std::vector<int> full_pattern;
   for(int i = 0; i < iterations; i++) {
     std::vector<Aggressor> abstract_pattern(slots);
     fill_abstract_pattern(abstract_pattern);
