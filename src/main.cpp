@@ -7,6 +7,7 @@
 #include "DRAMConfig.hpp"
 #include "FuzzReport.hpp"
 #include "HammerSuite.hpp"
+#include <sys/resource.h>
 
 struct Args {
   uint64_t runtime_limit = 3600;
@@ -29,6 +30,10 @@ Args parse_args(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+  // give this process the highest CPU priority so it can hammer with less interruptions
+  int ret = setpriority(PRIO_PROCESS, 0, -20);
+  if (ret!=0) printf("Instruction setpriority failed.\n");
+  
   DRAMConfig::select_config(Microarchitecture::AMD_ZEN_3, 1, 4, 4, false);
 
   Args args = parse_args(argc, argv);

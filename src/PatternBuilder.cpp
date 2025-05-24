@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <map>
 #include <random>
 #include <set>
 #include <vector>
@@ -55,18 +56,18 @@ PatternConfig PatternBuilder::create_random_config(size_t bank) {
 }
 
 size_t PatternBuilder::get_max_pattern_length() {
-  return max_slots;
+  return max_pattern_length;
 }
 
 void PatternBuilder::set_max_pattern_length(size_t length) {
-  max_slots = length;
+  max_pattern_length = length;
 }
 
 size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors) {
-  std::uniform_int_distribution<> slot_dist(5, max_slots);
-  int slots = slot_dist(engine);
+  int slots = (int)aggressors.size();
   size_t res = (size_t) slots;
-  std::uniform_real_distribution<> distance_dist(2, slots / 5.);
+  std::uniform_real_distribution<> distance_dist(1.5, slots / 10.);
+  int id = 0;
   do {
     float_t distance = distance_dist(engine);
     slots -= slots / (distance + 1);
@@ -75,72 +76,79 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors)
     }
     aggressors.push_back({
       .distance = distance,
+      .id = id++
     });
   } while(slots > 0);
   return res;
 }
 
-Pattern PatternBuilder::create_advanced_pattern(size_t bank) {
-  std::vector<Aggressor> abstract_pattern;
-  size_t slots = fill_abstract_pattern(abstract_pattern);
-  Pattern pattern(slots);
-  std::vector<bool> occupations(slots);
-  size_t start = 0;
-  for(auto agg : abstract_pattern) {
-    
-    DRAMAddr aggressor;
-    //on every 4th aggressor, we try to build a double-sided pattern.
-    if(start % 4 == 1) {
-      aggressor = pattern[start - 1];
-      aggressor.add_inplace(0, 2, 0);
-      if(!address_valid(aggressor.to_virt())) {
-        aggressor = get_random_address(bank);
+Pattern PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abstract_pattern) {
+  Pattern pattern(abstract_pattern.size());
+  std::map<int, DRAMAddr> id_to_addr_map;
+  id_to_addr_map[-1] = DRAMAddr(0, 0, DRAMConfig::get().columns()); //this identifies an unused slot
+  for(size_t i = 0; i < abstract_pattern.size(); i++) {
+    int aggr_id = abstract_pattern[i];
+    if(aggr_id % 4 == 1 && aggr_id != -1) {
+      DRAMAddr aggressor = id_to_addr_map[aggr_id - 1].add(0, 2, 0);
+      if(address_valid(aggressor)) {
+        id_to_addr_map[aggr_id] = aggressor;
       }
+    }
+    if(id_to_addr_map.contains(aggr_id)) {
+      pattern[i] = id_to_addr_map[aggr_id];
     } else {
-      aggressor = get_random_address(bank);
+      DRAMAddr addr = get_random_address(bank);
+      id_to_addr_map[aggr_id] = addr;
+      pattern[i] = addr;
     }
-
-    uint16_t distance_modifier = 0;
-    for(float i = start; i < slots; i += agg.distance) {
-      if(occupations[(int)i]) {
-        //increases the frequency if we were not able to place the aggressor in the pattern in any iteration
-        if(agg.distance - 1 > 1) {
-          agg.distance--;
-        }
-        distance_modifier++;
-        //this places us to the adjacent slot in the next iteration
-        i = i - agg.distance + 1;
-        continue;
-      }
-      //slowly restore the frequency if we were able to place
-      if(distance_modifier > 0) {
-        agg.distance++;
-        distance_modifier--;
-      }
-      pattern[(int)i] = aggressor;
-      occupations[(int)i] = true;
-    }
-    
-    start++;
   }
-  
-  std::uniform_int_distribution<> slot_dist(0, slots - 1);
-  int replacements = 0;
-  for(int i = 0; i < slots; i++) {
-    if(occupations[i]) {
-      continue;
-    }
-    int idx = slot_dist(engine);
-    while(!occupations[idx]) {
-      idx = slot_dist(engine);
-    }
-    pattern[i] = pattern[idx];
-    replacements++;
-  }
-
-  printf("\ncreated pattern with %lu slots and %lu aggressors. Used %d replacements for unfilled slots.\n", slots, abstract_pattern.size(), replacements);
 
   return pattern;
+}
+
+Pattern PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activations) {
+  std::uniform_int_distribution<> slot_dist(20, max_slots);
+  int slots = slot_dist(engine);
+  int iterations = max_activations / slots;
+  size_t start = 0;
+  std::vector<int> full_pattern(max_activations, -1);
+  for(int i = 0; i < iterations; i++) {
+    std::vector<Aggressor> abstract_pattern(slots);
+    fill_abstract_pattern(abstract_pattern);
+    std::vector<int> pattern(slots, -1);
+    std::vector<bool> occupations;
+
+    for(auto agg : abstract_pattern) {
+      uint16_t distance_modifier = 0;
+      for(float j = start; j < slots; j += agg.distance) {
+        if(occupations[(int)j]) {
+          //increases the frequency if we were not able to place the aggressor in the pattern in any iteration
+          if(agg.distance - 1 > 1) {
+            agg.distance--;
+          }
+          distance_modifier++;
+          //this places us to the adjacent slot in the next iteration
+          j = j - agg.distance + 1;
+          continue;
+        }
+        //slowly restore the frequency if we were able to place
+        if(distance_modifier > 0) {
+          agg.distance++;
+          distance_modifier--;
+        }
+        pattern[(int)j] = agg.id;
+        occupations[(int)j] = true;
+      }
+      
+      start++;
+    }
+    full_pattern.insert(full_pattern.end(), pattern.begin(), pattern.end());
+  }
+
+  Pattern mapped_pattern = map_to_aggrs(bank, full_pattern); 
+  printf("\ncreated pattern with %lu slots and %lu aggressors.\n", max_activations, full_pattern.size());
+
+  return mapped_pattern;
 }
 
 std::vector<DRAMAddr> PatternBuilder::create() {
@@ -212,7 +220,7 @@ std::vector<Pattern> PatternBuilder::create_multiple_banks(size_t banks) {
   std::vector<Pattern> patterns(banks);
   size_t bank_start = bank_offset_dist(engine);
   for(size_t i = 0; i < banks; i++) {
-    patterns[i] = create_advanced_pattern((bank_start + i) % DRAMConfig::get().banks());
+    patterns[i] = create_advanced_pattern((bank_start + i) % DRAMConfig::get().banks(), max_pattern_length);
   }
   return patterns;
 }

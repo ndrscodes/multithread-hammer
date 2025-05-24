@@ -7,7 +7,7 @@ typedef std::vector<DRAMAddr> Pattern;
 typedef std::pair<size_t, std::vector<DRAMAddr>> PatternPair;
 typedef struct {
   float_t distance;
-  size_t size;
+  int id;
 } Aggressor;
 
 const size_t MIN_ROW_OFFSET = 0;
@@ -29,9 +29,11 @@ class PatternBuilder {
     std::uniform_int_distribution<> row_offset_dist;
     std::uniform_int_distribution<> bank_offset_dist;
     std::uniform_int_distribution<> agg_count_dist;
-    size_t max_slots = 1000;
+    size_t max_slots = 256;
+    size_t max_pattern_length = 5000000;
     bool address_valid(void *address);
     size_t fill_abstract_pattern(std::vector<Aggressor> &pattern);
+    Pattern map_to_aggrs(size_t bank, std::vector<int> &abstract_pattern);
   public:
     PatternBuilder(Allocation &allocation);
     Pattern create();
@@ -46,7 +48,7 @@ class PatternBuilder {
     DRAMAddr get_random_address();
     size_t check(std::vector<DRAMAddr> aggressors);
     size_t full_alloc_check();
-    Pattern create_advanced_pattern(size_t bank);
+    Pattern create_advanced_pattern(size_t bank, size_t max_activations);
     size_t get_max_pattern_length();
     void set_max_pattern_length(size_t length);
     bool address_valid(DRAMAddr address);

@@ -31,17 +31,11 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
   Timer timer(builder);
   for(int i = 0; i < patterns.size(); i++) {
     printf("starting thread for pattern with %lu addresses on bank %lu...\n", patterns[i].size(), patterns[i][0].actual_bank());
-    printf("pattern:");
-    for(auto a : patterns[i]) {
-      printf(" %lu", a.actual_row());
-    }
-    printf("\n");
     threads[i] = std::thread(
       &HammerSuite::hammer_fn, 
       this, 
       thread_id++, 
       std::ref(patterns[i]), 
-      ACTIVATIONS, 
       std::ref(barrier), 
       std::ref(timings[i]),
       std::ref(timer)
@@ -56,10 +50,10 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
   auto max_timing = std::max_element(timings.begin(), timings.end());
   printf("maximum timing during fuzzing run was %lu cycles. Updating iterations.\n", *max_timing);
   size_t full_ref_cycles = timer.get_cycles_per_refresh() * 8192 * 2;
-  size_t max_activations = full_ref_cycles / (*max_timing / ACTIVATIONS);
+  size_t max_activations = full_ref_cycles / (*max_timing / builder.get_max_pattern_length());
   if(std::abs((float_t)max_activations - ACTIVATIONS) > ACTIVATIONS * 0.1) {
-    printf("updating iterations from %lu to %lu to match %lu cycles of hammering.\n", ACTIVATIONS, max_activations, full_ref_cycles);
-    ACTIVATIONS = max_activations;
+    printf("updating iterations from %lu to %lu to match %lu cycles of hammering.\n", builder.get_max_pattern_length(), max_activations, full_ref_cycles);
+    builder.set_max_pattern_length(max_activations);
   }
 
   LocationReport locationReport;
@@ -115,19 +109,10 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
   return reports;
 }
 
-void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer) {
-  for(int i = 0; i < pattern.size() / 7; i += 2) {
-    pattern.insert(pattern.begin(), builder.get_random_address());
-    DRAMAddr next = pattern.front().add(0, 2, 0);
-    if(builder.address_valid(next)) {
-      pattern.insert(pattern.begin(), next);
-    }
-  }
-
+void HammerSuite::hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer) {
   Jitter jitter(timer.get_refresh_threshold());
-  size_t actual_iterations = iterations / pattern.size();
 
-  HammerFunc fn = jitter.jit(pattern, actual_iterations);
+  HammerFunc fn = jitter.jit(pattern);
 
   //try to reset the sampler
   for(int i = 0; i < 100000; i++) {
@@ -137,7 +122,7 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, size_t iterations, std:
   _mm_mfence();
 
   start_barrier.arrive_and_wait();
-  printf("thread %lu is starting a hammering run for %lu addresses using %lu iterations.\n", id, pattern.size(), actual_iterations);
+  printf("thread %lu is starting a hammering run for %lu addresses.\n", id, pattern.size());
 #if SYNC_TO_REF
   timer.wait_for_refresh(pattern[0].actual_bank());
 #endif
