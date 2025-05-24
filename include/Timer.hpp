@@ -34,9 +34,10 @@ inline measurement Timer::measure(volatile char *addr) {
   uint32_t tsc_aux;
   _mm_clflushopt((void *)addr);
   _mm_mfence();
+  _mm_lfence();
   
   uint64_t start = __rdtscp(&tsc_aux);
-  _mm_mfence();
+  _mm_lfence();
   
   *addr;
 

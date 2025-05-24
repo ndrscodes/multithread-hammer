@@ -49,7 +49,8 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
   //TODO this is super ugly and should be refactored as soon as possible.
   auto max_timing = std::max_element(timings.begin(), timings.end());
   printf("maximum timing during fuzzing run was %lu cycles. Updating iterations.\n", *max_timing);
-  size_t full_ref_cycles = timer.get_cycles_per_refresh() * 8192 * 2;
+  printf("we hat %lu cycles per refresh in the last run.\n", timer.get_cycles_per_refresh());
+  size_t full_ref_cycles = timer.get_cycles_per_refresh() * 8192;
   size_t max_activations = full_ref_cycles / (*max_timing / builder.get_max_pattern_length());
   if(std::abs((float_t)max_activations - ACTIVATIONS) > ACTIVATIONS * 0.1) {
     printf("updating iterations from %lu to %lu to match %lu cycles of hammering.\n", builder.get_max_pattern_length(), max_activations, full_ref_cycles);

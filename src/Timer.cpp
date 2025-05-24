@@ -113,7 +113,7 @@ uint64_t Timer::reanalyze() {
     //we select the middle between the average across all samples and the median of all peaks
     //as our threshold for refresh-induced peaks.
     threshold = avg + ((peak_median - avg) / 2);
-    printf("measured threshold to be %lu.\n", threshold);
+    printf("measured threshold to be %lu. %lu cycles per refresh based on %lu peaks\n", threshold, cycles_per_refresh, peaks.size());
     assert(++i < 30);
   } while(fmin(previous, threshold) / (float_t)fmax(previous, threshold) > 0.1);
 
