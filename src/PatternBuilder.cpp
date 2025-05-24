@@ -116,7 +116,7 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activati
     std::vector<Aggressor> abstract_pattern(slots);
     fill_abstract_pattern(abstract_pattern);
     std::vector<int> pattern(slots, -1);
-    std::vector<bool> occupations;
+    std::vector<bool> occupations(slots);
 
     for(auto agg : abstract_pattern) {
       uint16_t distance_modifier = 0;
