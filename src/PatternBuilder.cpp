@@ -63,8 +63,8 @@ void PatternBuilder::set_max_pattern_length(size_t length) {
   max_pattern_length = length;
 }
 
-size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors) {
-  int slots = (int)aggressors.size();
+size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors, size_t size) {
+  int slots = size;
   size_t res = (size_t) slots;
   std::uniform_real_distribution<> distance_dist(1.5, slots / 10.);
   int id = 0;
@@ -113,8 +113,8 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activati
   size_t start = 0;
   std::vector<int> full_pattern;
   for(int i = 0; i < iterations; i++) {
-    std::vector<Aggressor> abstract_pattern(slots);
-    fill_abstract_pattern(abstract_pattern);
+    std::vector<Aggressor> abstract_pattern;
+    fill_abstract_pattern(abstract_pattern, slots);
     std::vector<int> pattern(slots, -1);
     std::vector<bool> occupations(slots);
 

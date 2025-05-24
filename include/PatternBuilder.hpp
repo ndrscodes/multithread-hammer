@@ -32,7 +32,7 @@ class PatternBuilder {
     size_t max_slots = 256;
     size_t max_pattern_length = 5000000;
     bool address_valid(void *address);
-    size_t fill_abstract_pattern(std::vector<Aggressor> &pattern);
+    size_t fill_abstract_pattern(std::vector<Aggressor> &pattern, size_t slots);
     Pattern map_to_aggrs(size_t bank, std::vector<int> &abstract_pattern);
   public:
     PatternBuilder(Allocation &allocation);
