@@ -71,7 +71,7 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
   assembler.rdtscp();
   assembler.lfence();
   assembler.shl(asmjit::x86::rdx, 32);
-  assembler.mov(asmjit::x86::edx, asmjit::x86::eax);
+  assembler.or_(asmjit::x86::rdx, asmjit::x86::rax);
   assembler.push(asmjit::x86::rdx);
 
   for(int j = 0; j < ptrs.size(); j++) {
@@ -102,7 +102,7 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
   assembler.rdtscp();
   assembler.lfence();
   assembler.shl(asmjit::x86::rdx, 32);
-  assembler.mov(asmjit::x86::edx, asmjit::x86::eax);
+  assembler.or_(asmjit::x86::rdx, asmjit::x86::rax);
   assembler.push(asmjit::x86::rdx);
 
   jit_ref_sync(assembler, addresses.back());
