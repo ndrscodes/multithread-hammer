@@ -126,8 +126,5 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_b
 #if SYNC_TO_REF
   timer.wait_for_refresh(pattern[0].actual_bank());
 #endif
-  uint64_t start = timer.current_timestamp();
-  fn();
-  uint64_t end = timer.current_timestamp();
-  timing = end - start;
+  timing = fn();
 }
