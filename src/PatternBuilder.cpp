@@ -259,7 +259,7 @@ size_t PatternBuilder::full_alloc_check() {
 size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
   size_t flips = 0;
 
-  std::set<void *> checked_addrs;
+  std::set<size_t> checked_rows;
 
   for(auto aggressor : aggressors) {
     for(int i = -(int)VICTIM_ROWS; i < (int)VICTIM_ROWS; i++) {
@@ -267,21 +267,22 @@ size_t PatternBuilder::check(std::vector<DRAMAddr> aggressors) {
         continue;
       }
       DRAMAddr victim = DRAMAddr(aggressor.bank, aggressor.row + i, 0);
+      if(checked_rows.contains(victim.row)) {
+        continue;
+      }
+      
       char *victim_addr = (char *)victim.to_virt();
       if(!allocation.is_valid(victim_addr)) {
         printf("warning: victim %s is invalid.\n", victim.to_string().c_str());
         continue;
       }
-      if(checked_addrs.contains(victim_addr)) {
-        continue;
-      }
 
       flips += allocation.find_flips(victim_addr);
-      checked_addrs.insert(victim_addr);
+      checked_rows.insert(victim.row);
     }
   }
 
-  printf("checked %lu distinct addresses for flips.\n", checked_addrs.size());
+  printf("checked %lu distinct addresses for flips.\n", checked_rows.size());
 
   return flips;
 }

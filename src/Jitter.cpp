@@ -24,7 +24,7 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
   assembler.mov(asmjit::x86::rax, sync_addr);
   assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
   
-  assembler.lfence();
+  assembler.mfence();
   //stores cycles in EAX
   assembler.rdtscp();
   assembler.lfence();
@@ -34,10 +34,10 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
   
   //now we hammer
   assembler.mov(asmjit::x86::rax, sync_addr);
-  assembler.mov(asmjit::x86::rdx, asmjit::x86::ptr(asmjit::x86::rax));
+  assembler.mov(asmjit::x86::edx, asmjit::x86::ptr(asmjit::x86::rax));
 
   //take another measurement
-  assembler.lfence();
+  assembler.mfence();
   assembler.rdtscp();
   assembler.lfence();
 
@@ -66,6 +66,14 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
   used_ptrs.insert(ptrs.front()); 
   jit_ref_sync(assembler, addresses.back());
 
+  //get the current timestamp and push it to the stack
+  assembler.mfence();
+  assembler.rdtscp();
+  assembler.lfence();
+  assembler.shl(asmjit::x86::rdx, 32);
+  assembler.mov(asmjit::x86::edx, asmjit::x86::eax);
+  assembler.push(asmjit::x86::rdx);
+
   for(int j = 0; j < ptrs.size(); j++) {
     if(ptrs[j] == nullptr) {
       assembler.mfence();
@@ -89,7 +97,21 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
   }
 
+  //get another timestamp
+  assembler.mfence();
+  assembler.rdtscp();
+  assembler.lfence();
+  assembler.shl(asmjit::x86::rdx, 32);
+  assembler.mov(asmjit::x86::edx, asmjit::x86::eax);
+  assembler.push(asmjit::x86::rdx);
+
   jit_ref_sync(assembler, addresses.back());
+
+  //pop newest timestamp to rax, oldest to rdx
+  assembler.pop(asmjit::x86::rax);
+  assembler.pop(asmjit::x86::rdx);
+  //subtract oldest from newest in rax, which is our return value
+  assembler.sub(asmjit::x86::rax, asmjit::x86::rdx);
 
   assembler.ret();
 

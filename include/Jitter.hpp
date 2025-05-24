@@ -3,7 +3,7 @@
 #include <asmjit/asmjit.h>
 #include <vector>
 
-typedef void (*HammerFunc)(void);
+typedef size_t (*HammerFunc)(void);
 
 class Jitter {
 private:
