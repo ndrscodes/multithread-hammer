@@ -162,7 +162,7 @@ PatternContainer PatternBuilder::create_advanced_pattern(size_t bank, size_t max
   }
 
   PatternContainer mapped_pattern = map_to_aggrs(bank, full_pattern); 
-  printf("\ncreated pattern with %lu slots and %lu aggressors.\n", max_activations, full_pattern.size());
+  printf("\ncreated pattern with %lu slots and %lu aggressors. Using %lu distinct addresses.\n", max_activations, full_pattern.size(), mapped_pattern.aggressors.size());
 
   return mapped_pattern;
 }
