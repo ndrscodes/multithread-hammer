@@ -9,7 +9,7 @@
 #include <set>
 #include <vector>
 
-const size_t SERIALIZE_EACH_N = 2;
+const size_t SERIALIZE_EACH_N = 16;
 
 Jitter::Jitter(size_t refresh_threshold) {
   this->refresh_threshold = refresh_threshold;
@@ -25,16 +25,17 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
   assembler.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
   
   assembler.mfence();
+  assembler.lfence();
   //stores cycles in EAX
   assembler.rdtscp();
   assembler.lfence();
  
-  //store cycles in ECX for comparing it later
-  assembler.mov(asmjit::x86::ecx, asmjit::x86::eax);
+  //store cycles in r11 for comparing it later
+  assembler.mov(asmjit::x86::r11, asmjit::x86::eax);
   
   //now we hammer
   assembler.mov(asmjit::x86::rax, sync_addr);
-  assembler.mov(asmjit::x86::edx, asmjit::x86::ptr(asmjit::x86::rax));
+  assembler.mov(asmjit::x86::rdx, asmjit::x86::ptr(asmjit::x86::rax));
 
   //take another measurement
   assembler.mfence();
@@ -42,14 +43,14 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
   assembler.lfence();
 
   //subtract the previous timestamp from the current
-  assembler.sub(asmjit::x86::eax, asmjit::x86::ecx);
+  assembler.sub(asmjit::x86::rax, asmjit::x86::r11);
 
   //we jump to start if we were below refresh_threshold cycles
-  assembler.cmp(asmjit::x86::edx, refresh_threshold);
+  assembler.cmp(asmjit::x86::rax, refresh_threshold);
   assembler.jb(start);
 }
 
-HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
+HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t acts, bool sync_each_iteration) {
   asmjit::CodeHolder h;
   h.init(rt.environment(), rt.cpuFeatures());
   asmjit::x86::Assembler assembler(&h);
@@ -64,7 +65,14 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
   std::set<volatile char *> used_ptrs;
 
   used_ptrs.insert(ptrs.front()); 
+
+  assembler.mov(asmjit::x86::rsi, 0);
   jit_ref_sync(assembler, addresses.back());
+
+  auto loop_start = assembler.newLabel();
+  if(sync_each_iteration) {
+    jit_ref_sync(assembler, addresses.back());
+  }
 
   //get the current timestamp and push it to the stack
   assembler.mfence();
@@ -72,13 +80,21 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
   assembler.lfence();
   assembler.shl(asmjit::x86::rdx, 32);
   assembler.or_(asmjit::x86::rdx, asmjit::x86::rax);
-  assembler.push(asmjit::x86::rdx);
+  assembler.mov(asmjit::x86::r10, asmjit::x86::rdx);
 
+  bool should_fence = true;
   for(int j = 0; j < ptrs.size(); j++) {
     if(ptrs[j] == nullptr) {
-      assembler.mfence();
+      if(should_fence) {
+        assembler.mfence();
+        should_fence = false;
+      } else {
+        assembler.nop();
+      }
       assembler.nop();
+      continue;
     }
+    should_fence = true;
     //move the pointer to rax
     assembler.mov(asmjit::x86::rax, (uint64_t)ptrs[j]);
     //we only need to flush addresses which have already been accessed
@@ -95,7 +111,11 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
     }
     //dereference the pointer, causing a memory access
     assembler.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
+    assembler.inc(asmjit::x86::rsi);
   }
+
+  assembler.cmp(asmjit::x86::rsi, acts);
+  assembler.jb(loop_start);
 
   //get another timestamp
   assembler.mfence();
@@ -109,9 +129,8 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses) {
 
   //pop newest timestamp to rax, oldest to rdx
   assembler.pop(asmjit::x86::rax);
-  assembler.pop(asmjit::x86::rdx);
   //subtract oldest from newest in rax, which is our return value
-  assembler.sub(asmjit::x86::rax, asmjit::x86::rdx);
+  assembler.sub(asmjit::x86::rax, asmjit::x86::r10);
 
   assembler.ret();
 

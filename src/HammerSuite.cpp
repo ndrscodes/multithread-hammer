@@ -38,7 +38,8 @@ LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> patterns
       std::ref(patterns[i].pattern), 
       std::ref(barrier), 
       std::ref(timings[i]),
-      std::ref(timer)
+      std::ref(timer),
+      timer.current_timestamp() % 2 == 0
     );
   }
   
@@ -110,10 +111,10 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
   return reports;
 }
 
-void HammerSuite::hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer) {
+void HammerSuite::hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer, bool sync_each_ref) {
   Jitter jitter(timer.get_refresh_threshold());
 
-  HammerFunc fn = jitter.jit(pattern);
+  HammerFunc fn = jitter.jit(pattern, 5000000, sync_each_ref);
 
   //try to reset the sampler
   for(int i = 0; i < 100000; i++) {
@@ -128,4 +129,5 @@ void HammerSuite::hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_b
   timer.wait_for_refresh(pattern[0].actual_bank());
 #endif
   timing = fn();
+  jitter.clean();
 }

@@ -13,7 +13,7 @@ private:
   void jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank);
 public:
   Jitter(size_t refresh_threshold);
-  HammerFunc jit(std::vector<DRAMAddr> &addresses);
+  HammerFunc jit(std::vector<DRAMAddr> &addresses, size_t acts, bool sync_each_iteration);
   void clean();
   ~Jitter();
 };

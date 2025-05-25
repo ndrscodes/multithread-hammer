@@ -12,7 +12,7 @@ class HammerSuite {
 private:
   size_t current_pattern_id;
   std::map<size_t, Pattern> patterns;
-  void hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer);
+  void hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer, bool sync_each_ref);
   PatternBuilder &builder;
 public:
   HammerSuite(PatternBuilder &builder);
