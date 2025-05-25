@@ -103,10 +103,7 @@ uint64_t Timer::reanalyze() {
       }
     }
     
-    std::vector<uint64_t> peak_timings(peaks.size());
-    for(int j = 0; j < peaks.size(); j++) {
-      peak_timings.push_back(peaks[j].timing);
-    }
+    auto peak_timings = extract_timings(peaks);
     uint64_t peak_median = get_median(peak_timings);
 
     std::vector<uint64_t> peak_diffs(peaks.size() - 1);
