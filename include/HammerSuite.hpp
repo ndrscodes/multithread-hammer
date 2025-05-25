@@ -17,6 +17,6 @@ private:
 public:
   HammerSuite(PatternBuilder &builder);
   FuzzReport fuzz(size_t locations, size_t patterns);
-  LocationReport fuzz_location(std::vector<PatternContainer> patterns);
+  LocationReport fuzz_location(std::vector<PatternContainer> &patterns, bool allow_recalculation);
   std::vector<FuzzReport> auto_fuzz(size_t locations_per_fuzz, size_t max_runtime_in_seconds);
 };

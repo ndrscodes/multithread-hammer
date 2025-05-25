@@ -22,7 +22,7 @@ size_t ACTIVATIONS = 6000000;
 
 HammerSuite::HammerSuite(PatternBuilder &builder) : builder(builder){}
 
-LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> patterns) {
+LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> &patterns, bool allow_recalculation) {
   std::vector<std::thread> threads(patterns.size());
   std::barrier barrier(patterns.size());
 
@@ -51,16 +51,18 @@ LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> patterns
   for(auto& thread : threads) {
     thread.join();
   }
-  
-  //TODO this is super ugly and should be refactored as soon as possible.
-  auto max_timing = std::max_element(timings.begin(), timings.end());
-  printf("maximum timing during fuzzing run was %lu cycles. Updating iterations.\n", *max_timing);
-  printf("we hat %lu cycles per refresh in the last run.\n", timer.get_cycles_per_refresh());
-  size_t full_ref_cycles = timer.get_cycles_per_refresh() * 8192;
-  size_t max_activations = full_ref_cycles / (*max_timing / builder.get_max_pattern_length());
-  if(std::abs((float_t)max_activations - ACTIVATIONS) > ACTIVATIONS * 0.1) {
-    printf("updating iterations from %lu to %lu to match %lu cycles of hammering.\n", builder.get_max_pattern_length(), max_activations, full_ref_cycles);
-    builder.set_max_pattern_length(max_activations);
+
+  if(allow_recalculation) {
+    //TODO this is super ugly and should be refactored as soon as possible.
+    auto max_timing = std::max_element(timings.begin(), timings.end());
+    printf("maximum timing during fuzzing run was %lu cycles. Updating iterations.\n", *max_timing);
+    printf("we hat %lu cycles per refresh in the last run.\n", timer.get_cycles_per_refresh());
+    size_t full_ref_cycles = timer.get_cycles_per_refresh() * 2048;
+    size_t max_activations = full_ref_cycles / (*max_timing / builder.get_max_pattern_length());
+    if(std::abs((float_t)max_activations - ACTIVATIONS) > ACTIVATIONS * 0.1) {
+      printf("updating iterations from %lu to %lu to match %lu cycles of hammering.\n", builder.get_max_pattern_length(), max_activations, full_ref_cycles);
+      builder.set_max_pattern_length(max_activations);
+    }
   }
 
   LocationReport locationReport;
@@ -89,7 +91,7 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
     } else {
       first = false;
     }
-    report.add_report(fuzz_location(fuzz_patterns));
+    report.add_report(fuzz_location(fuzz_patterns, i == 0));
     printf("executed fuzzing run on location %lu with %lu patterns, flipping %lu bits.\n", i, patterns, report.get_reports().back().sum_flips());
   }
 
