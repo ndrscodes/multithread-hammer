@@ -111,7 +111,7 @@ uint64_t Timer::reanalyze() {
       peak_diffs.push_back(peaks[j].timestamp - peaks[j - 1].timestamp);
     }
 
-    cycles_per_refresh = get_median(peak_diffs);
+    cycles_per_refresh = get_average(peak_diffs);
    
     //the median of the peaks should always be higher than the average across all samples
     //we select the middle between the average across all samples and the median of all peaks
