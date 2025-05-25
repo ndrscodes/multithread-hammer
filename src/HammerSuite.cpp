@@ -68,7 +68,7 @@ LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> &pattern
   LocationReport locationReport;
   for(auto pattern : patterns) {
     PatternReport report {
-      .pattern = pattern.pattern,
+//      .pattern = pattern.pattern,
       .flips = builder.check(pattern.aggressors)
     };
     locationReport.add_report(report);

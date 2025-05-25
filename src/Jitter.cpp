@@ -70,6 +70,7 @@ HammerFunc Jitter::jit(std::vector<DRAMAddr> &addresses, size_t acts, bool sync_
   jit_ref_sync(assembler, addresses.back());
 
   auto loop_start = assembler.newLabel();
+  assembler.bind(loop_start);
   if(sync_each_iteration) {
     jit_ref_sync(assembler, addresses.back());
   }
