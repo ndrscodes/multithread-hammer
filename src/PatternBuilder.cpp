@@ -15,7 +15,8 @@ const size_t VICTIM_ROWS = 7;
 const size_t MAX_DIST = 1000;
 
 PatternBuilder::PatternBuilder(Allocation &allocation) : allocation(allocation) {
-  engine = std::mt19937();
+  std::random_device rd;
+  engine = std::mt19937(rd());
   row_offset_dist = std::uniform_int_distribution<>(MIN_ROW_OFFSET, MAX_ROW_OFFSET);
   bank_offset_dist = std::uniform_int_distribution<>(0, DRAMConfig::get().banks());
   agg_count_dist = std::uniform_int_distribution<>(MIN_NUM_AGGRESSORS, MAX_NUM_AGGRESSORS);
@@ -67,16 +68,23 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors,
   int slots = size;
   size_t res = (size_t) slots;
   std::uniform_real_distribution<> distance_dist(1.5, slots / 10.);
-  int id = 0;
+  std::vector<int> ids(slots / 10);
+  for(int i = 0; i < ids.size(); i++) {
+    ids[i] = i;
+  }
+  std::shuffle(ids.begin(), ids.end(), engine);
+
+  int i = 0;
   do {
     float_t distance = distance_dist(engine);
     slots -= slots / (distance);
-    if(slots < 0) {
+    if(slots < 0 || i >= ids.size()) {
       break;
     }
+    int id = ids[i++];
     aggressors.push_back({
       .distance = distance,
-      .id = id++
+      .id = id
     });
   } while(slots > 0);
   return res;
