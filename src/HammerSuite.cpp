@@ -29,8 +29,13 @@ LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> patterns
   size_t thread_id = 0;
   std::vector<uint64_t> timings(patterns.size());
   Timer timer(builder);
+  bool sync_each = timer.current_timestamp() % 2 == 0;
   for(int i = 0; i < patterns.size(); i++) {
-    printf("starting thread for pattern with %lu addresses on bank %lu...\n", patterns[i].pattern.size(), patterns[i].pattern[0].actual_bank());
+    printf("starting %s thread for pattern with %lu addresses on bank %lu...\n",
+           sync_each ? "FULLY SYNCED" : "HALF SYNCED",
+           patterns[i].pattern.size(),
+           patterns[i].pattern[0].actual_bank());
+
     threads[i] = std::thread(
       &HammerSuite::hammer_fn, 
       this, 
@@ -39,7 +44,7 @@ LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> patterns
       std::ref(barrier), 
       std::ref(timings[i]),
       std::ref(timer),
-      timer.current_timestamp() % 2 == 0
+      sync_each
     );
   }
   
