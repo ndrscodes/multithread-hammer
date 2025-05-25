@@ -22,7 +22,7 @@ size_t ACTIVATIONS = 6000000;
 
 HammerSuite::HammerSuite(PatternBuilder &builder) : builder(builder){}
 
-LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
+LocationReport HammerSuite::fuzz_location(std::vector<PatternContainer> patterns) {
   std::vector<std::thread> threads(patterns.size());
   std::barrier barrier(patterns.size());
 
@@ -30,12 +30,12 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
   std::vector<uint64_t> timings(patterns.size());
   Timer timer(builder);
   for(int i = 0; i < patterns.size(); i++) {
-    printf("starting thread for pattern with %lu addresses on bank %lu...\n", patterns[i].size(), patterns[i][0].actual_bank());
+    printf("starting thread for pattern with %lu addresses on bank %lu...\n", patterns[i].pattern.size(), patterns[i].pattern[0].actual_bank());
     threads[i] = std::thread(
       &HammerSuite::hammer_fn, 
       this, 
       thread_id++, 
-      std::ref(patterns[i]), 
+      std::ref(patterns[i].pattern), 
       std::ref(barrier), 
       std::ref(timings[i]),
       std::ref(timer)
@@ -60,8 +60,8 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
   LocationReport locationReport;
   for(auto pattern : patterns) {
     PatternReport report {
-      .pattern = pattern,
-      .flips = builder.check(pattern)
+      .pattern = pattern.pattern,
+      .flips = builder.check(pattern.aggressors)
     };
     locationReport.add_report(report);
   }
@@ -71,7 +71,7 @@ LocationReport HammerSuite::fuzz_location(std::vector<Pattern> patterns) {
 
 FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
   FuzzReport report;
-  std::vector<Pattern> fuzz_patterns = builder.create_multiple_banks(patterns);
+  std::vector<PatternContainer> fuzz_patterns = builder.create_multiple_banks(patterns);
   bool first = true;
   printf("running %lu patterns over %lu locations...\n", patterns, locations);
   for(size_t i = 0; i < locations; i++) {

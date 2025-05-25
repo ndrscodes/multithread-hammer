@@ -22,6 +22,11 @@ typedef struct {
   size_t root_bank;
 } PatternConfig;
 
+struct PatternContainer {
+  std::vector<DRAMAddr> aggressors;
+  Pattern pattern;
+};
+
 class PatternBuilder {
   private:
     Allocation allocation;
@@ -33,22 +38,22 @@ class PatternBuilder {
     size_t max_pattern_length = 5000000;
     bool address_valid(void *address);
     size_t fill_abstract_pattern(std::vector<Aggressor> &pattern, size_t slots);
-    Pattern map_to_aggrs(size_t bank, std::vector<int> &abstract_pattern);
+    PatternContainer map_to_aggrs(size_t bank, std::vector<int> &abstract_pattern);
   public:
     PatternBuilder(Allocation &allocation);
     Pattern create();
     Pattern create(size_t bank);
     Pattern create(size_t bank, size_t num_aggressors_per_bank);
     Pattern create(PatternConfig config);
-    Pattern translate(Pattern pattern, size_t bank_offset, size_t row_offset);
-    std::vector<Pattern> create_multiple_banks(size_t banks);
+    PatternContainer translate(PatternContainer pattern, size_t bank_offset, size_t row_offset);
+    std::vector<PatternContainer> create_multiple_banks(size_t banks);
     std::vector<Pattern> create_multiple_banks(size_t banks, PatternConfig config);
     PatternConfig create_random_config(size_t bank);
     DRAMAddr get_random_address(size_t bank);
     DRAMAddr get_random_address();
     size_t check(std::vector<DRAMAddr> aggressors);
     size_t full_alloc_check();
-    Pattern create_advanced_pattern(size_t bank, size_t max_activations);
+    PatternContainer create_advanced_pattern(size_t bank, size_t max_activations);
     size_t get_max_pattern_length();
     void set_max_pattern_length(size_t length);
     bool address_valid(DRAMAddr address);

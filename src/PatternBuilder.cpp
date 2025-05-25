@@ -82,7 +82,7 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors,
   return res;
 }
 
-Pattern PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abstract_pattern) {
+PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abstract_pattern) {
   Pattern pattern(abstract_pattern.size());
   std::map<int, DRAMAddr> id_to_addr_map;
   id_to_addr_map[-1] = DRAMAddr(0, 0, DRAMConfig::get().columns()); //this identifies an unused slot
@@ -103,10 +103,18 @@ Pattern PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abstract_pat
     }
   }
 
-  return pattern;
+  std::vector<DRAMAddr> addrs(id_to_addr_map.size());
+  for(auto pair : id_to_addr_map) {
+    addrs.push_back(pair.second);
+  }
+
+  return {
+    .aggressors = addrs,
+    .pattern = pattern
+  };
 }
 
-Pattern PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activations) {
+PatternContainer PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activations) {
   std::uniform_int_distribution<> slot_dist(20, max_slots);
   int slots = slot_dist(engine);
   int iterations = max_activations / slots;
@@ -145,7 +153,7 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activati
     full_pattern.insert(full_pattern.end(), pattern.begin(), pattern.end());
   }
 
-  Pattern mapped_pattern = map_to_aggrs(bank, full_pattern); 
+  PatternContainer mapped_pattern = map_to_aggrs(bank, full_pattern); 
   printf("\ncreated pattern with %lu slots and %lu aggressors.\n", max_activations, full_pattern.size());
 
   return mapped_pattern;
@@ -216,8 +224,8 @@ std::vector<DRAMAddr> PatternBuilder::create(PatternConfig config) {
   return addresses;
 }
 
-std::vector<Pattern> PatternBuilder::create_multiple_banks(size_t banks) {
-  std::vector<Pattern> patterns(banks);
+std::vector<PatternContainer> PatternBuilder::create_multiple_banks(size_t banks) {
+  std::vector<PatternContainer> patterns(banks);
   size_t bank_start = bank_offset_dist(engine);
   for(size_t i = 0; i < banks; i++) {
     patterns[i] = create_advanced_pattern((bank_start + i) % DRAMConfig::get().banks(), max_pattern_length);
@@ -234,10 +242,11 @@ std::vector<Pattern> PatternBuilder::create_multiple_banks(size_t banks, Pattern
   return patterns;
 }
 
-Pattern PatternBuilder::translate(Pattern pattern, size_t bank_offset, size_t row_offset) {
-  Pattern offset_pattern(pattern.size());
-  for(size_t i = 0; i < pattern.size(); i++) {
-    DRAMAddr candidate = pattern[i].add(bank_offset, row_offset, 0);
+PatternContainer PatternBuilder::translate(PatternContainer pattern, size_t bank_offset, size_t row_offset) {
+  Pattern offset_pattern(pattern.pattern.size());
+  std::vector<DRAMAddr> aggressors(pattern.aggressors.size());
+  for(size_t i = 0; i < pattern.pattern.size(); i++) {
+    DRAMAddr candidate = pattern.pattern[i].add(bank_offset, row_offset, 0);
     if(!address_valid(candidate.to_virt())) {
       i--;
       //we expect at least some space to be reseved on each bank.
@@ -249,7 +258,23 @@ Pattern PatternBuilder::translate(Pattern pattern, size_t bank_offset, size_t ro
     offset_pattern[i] = candidate;
   }
 
-  return offset_pattern;
+  for(size_t i = 0; i < pattern.aggressors.size(); i++) {
+    DRAMAddr candidate = pattern.aggressors[i].add(bank_offset, row_offset, 0);
+    if(!address_valid(candidate.to_virt())) {
+      i--;
+      //we expect at least some space to be reseved on each bank.
+      //we increment the row offset until we find a valid space within the new bank.
+      //since all rows are moved by this fixed offset, the pattern still remains the same.
+      row_offset += 32;
+      continue;
+    }
+    aggressors[i] = candidate;
+  }
+
+  return {
+    .aggressors = aggressors,
+    .pattern = offset_pattern
+  };
 }
 
 size_t PatternBuilder::full_alloc_check() {
