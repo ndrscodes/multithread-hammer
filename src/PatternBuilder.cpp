@@ -70,7 +70,7 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors,
   int id = 0;
   do {
     float_t distance = distance_dist(engine);
-    slots -= slots / (distance + 1);
+    slots -= slots / (distance);
     if(slots < 0) {
       break;
     }
@@ -110,9 +110,9 @@ Pattern PatternBuilder::create_advanced_pattern(size_t bank, size_t max_activati
   std::uniform_int_distribution<> slot_dist(20, max_slots);
   int slots = slot_dist(engine);
   int iterations = max_activations / slots;
-  size_t start = 0;
   std::vector<int> full_pattern;
   for(int i = 0; i < iterations; i++) {
+    size_t start = 0;
     std::vector<Aggressor> abstract_pattern;
     fill_abstract_pattern(abstract_pattern, slots);
     std::vector<int> pattern(slots, -1);

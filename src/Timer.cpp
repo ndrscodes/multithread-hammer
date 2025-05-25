@@ -92,22 +92,29 @@ uint64_t Timer::reanalyze() {
     get_measurements(100000);
     sched_yield();
 
-    std::vector<measurement> measurements = get_measurements(1000000);
+    std::vector<measurement> measurements = get_measurements(400000);
     std::vector<uint64_t> timings = extract_timings(measurements);
     double_t avg = get_average(timings);
 
-    std::vector<uint64_t> peaks;
+    std::vector<measurement> peaks;
     for(auto measurement : measurements) {
       if(measurement.timing > avg * PEAK_DECISION_MULTIPLIER) {
-        peaks.push_back(measurement.timing);
+        peaks.push_back(measurement);
       }
     }
+    
+    std::vector<uint64_t> peak_timings(peaks.size());
+    for(int j = 0; j < peaks.size(); j++) {
+      peak_timings.push_back(peaks[j].timing);
+    }
+    uint64_t peak_median = get_median(peak_timings);
 
-    measurement start = measurements.front();
-    measurement end = measurements.back();
-    cycles_per_refresh = (end.timestamp - end.timing - start.timestamp) / peaks.size();
+    std::vector<uint64_t> peak_diffs(peaks.size() - 1);
+    for(int j = 1; j < peaks.size(); j++) {
+      peak_diffs.push_back(peaks[j].timestamp - peaks[j - 1].timestamp);
+    }
 
-    uint64_t peak_median = get_median(peaks);
+    cycles_per_refresh = get_median(peak_diffs);
    
     //the median of the peaks should always be higher than the average across all samples
     //we select the middle between the average across all samples and the median of all peaks
