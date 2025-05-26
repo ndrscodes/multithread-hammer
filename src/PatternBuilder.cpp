@@ -68,6 +68,7 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors,
   int slots = size;
   size_t res = (size_t) slots;
   std::uniform_real_distribution<> distance_dist(1.5, slots / 10.);
+  std::uniform_int_distribution<> offset_dist(0, size * 3 / 4);
   std::vector<int> ids(slots / 10);
   for(int i = 0; i < ids.size(); i++) {
     ids[i] = i;
@@ -82,9 +83,11 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors,
       break;
     }
     int id = ids[i++];
+    size_t offset = offset_dist(engine);
     aggressors.push_back({
       .distance = distance,
-      .id = id
+      .id = id,
+      .offset = offset > res / 3 ? offset : 0
     });
   } while(slots > 0);
   return res;
@@ -96,7 +99,7 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
   id_to_addr_map[-1] = DRAMAddr(0, 0, DRAMConfig::get().columns()); //this identifies an unused slot
   for(size_t i = 0; i < abstract_pattern.size(); i++) {
     int aggr_id = abstract_pattern[i];
-    if(aggr_id % 4 == 1 && aggr_id != -1) {
+    if(aggr_id % 3 == 1 && aggr_id != -1) {
       DRAMAddr aggressor = id_to_addr_map[aggr_id - 1].add(0, 2, 0);
       if(address_valid(aggressor)) {
         id_to_addr_map[aggr_id] = aggressor;
@@ -128,7 +131,6 @@ PatternContainer PatternBuilder::create_advanced_pattern(size_t bank, size_t max
   int iterations = max_activations / slots;
   std::vector<int> full_pattern;
   for(int i = 0; i < iterations; i++) {
-    size_t start = 0;
     std::vector<Aggressor> abstract_pattern;
     fill_abstract_pattern(abstract_pattern, slots);
     std::vector<int> pattern(slots, -1);
@@ -136,7 +138,7 @@ PatternContainer PatternBuilder::create_advanced_pattern(size_t bank, size_t max
 
     for(auto agg : abstract_pattern) {
       uint16_t distance_modifier = 0;
-      for(float j = start; j < slots; j += agg.distance) {
+      for(float j = agg.offset; j < slots; j += agg.distance) {
         if(occupations[(int)j]) {
           //increases the frequency if we were not able to place the aggressor in the pattern in any iteration
           if(agg.distance - 1 > 1) {
@@ -155,8 +157,6 @@ PatternContainer PatternBuilder::create_advanced_pattern(size_t bank, size_t max
         pattern[(int)j] = agg.id;
         occupations[(int)j] = true;
       }
-      
-      start++;
     }
     full_pattern.insert(full_pattern.end(), pattern.begin(), pattern.end());
   }
