@@ -110,6 +110,7 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
         DRAMAddr aggressor = id_to_addr_map[target_id].add(0, 2, 0);
         if(address_valid(aggressor)) {
           id_to_addr_map[aggr_id] = aggressor;
+          addrs.push_back(aggressor);
         }
       }
     }
