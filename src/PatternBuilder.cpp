@@ -102,8 +102,8 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
   std::set<size_t> known_rows;
   for(size_t i = 0; i < abstract_pattern.size(); i++) {
     int aggr_id = abstract_pattern[i];
-    if(aggr_id % 3 == 1 && aggr_id != -1) {
-      DRAMAddr aggressor = id_to_addr_map[aggr_id - 1].add(0, 2, 0);
+    if(i % 3 == 1 && aggr_id != -1) {
+      DRAMAddr aggressor = id_to_addr_map[abstract_pattern[i - 1]].add(0, 2, 0);
       if(address_valid(aggressor)) {
         id_to_addr_map[aggr_id] = aggressor;
       }
