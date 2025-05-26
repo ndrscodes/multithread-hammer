@@ -104,13 +104,13 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
 
   for(size_t i = 0; i < abstract_pattern.size(); i++) {
     int aggr_id = abstract_pattern[i];
-    if(i % 3 == 1 && aggr_id != -1) {
+
+    if(i % 3 == 1 && aggr_id != -1 && !id_to_addr_map.contains(aggr_id)) {
       int target_id = abstract_pattern[i - 1];
       if(target_id != -1) {
         DRAMAddr aggressor = id_to_addr_map[target_id].add(0, 2, 0);
         if(address_valid(aggressor)) {
           id_to_addr_map[aggr_id] = aggressor;
-          addrs.push_back(aggressor);
         }
       }
     }
