@@ -100,6 +100,7 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
   std::map<int, DRAMAddr> id_to_addr_map;
   id_to_addr_map[-1] = DRAMAddr(0, 0, DRAMConfig::get().columns()); //this identifies an unused slot
   std::set<size_t> known_rows;
+  std::vector<DRAMAddr> addrs;
   for(size_t i = 0; i < abstract_pattern.size(); i++) {
     int aggr_id = abstract_pattern[i];
     if(i % 3 == 1 && aggr_id != -1) {
@@ -118,13 +119,7 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
       known_rows.insert(addr.row);
       id_to_addr_map[aggr_id] = addr;
       pattern[i] = addr;
-    }
-  }
-
-  std::vector<DRAMAddr> addrs;
-  for(auto pair : id_to_addr_map) {
-    if(id_to_addr_map[pair.first].col != DRAMConfig::get().columns()) {
-      addrs.push_back(id_to_addr_map[pair.first]);
+      addrs.push_back(addr);
     }
   }
 
