@@ -121,9 +121,11 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
     }
   }
 
-  std::vector<DRAMAddr> addrs(id_to_addr_map.size());
+  std::vector<DRAMAddr> addrs;
   for(auto pair : id_to_addr_map) {
-    addrs.push_back(pair.second);
+    if(pair.second.col != DRAMConfig::get().columns()) {
+      addrs.push_back(pair.second);
+    }
   }
 
   return {
