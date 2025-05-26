@@ -68,7 +68,7 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors,
   int slots = size;
   size_t res = (size_t) slots;
   std::uniform_real_distribution<> distance_dist(1.5, slots / 10.);
-  std::uniform_int_distribution<> offset_dist(0, size * 3 / 4);
+  std::uniform_int_distribution<> offset_dist(0, size * 0.75);
   std::vector<int> ids(slots / 10);
   for(int i = 0; i < ids.size(); i++) {
     ids[i] = i;
@@ -87,7 +87,7 @@ size_t PatternBuilder::fill_abstract_pattern(std::vector<Aggressor> &aggressors,
     aggressors.push_back({
       .distance = distance,
       .id = id,
-      .offset = offset > res / 3 ? offset : 0
+      .offset = offset > (size / 3) ? offset : 0
     });
   } while(slots > 0);
   return res;
@@ -123,8 +123,8 @@ PatternContainer PatternBuilder::map_to_aggrs(size_t bank, std::vector<int> &abs
 
   std::vector<DRAMAddr> addrs;
   for(auto pair : id_to_addr_map) {
-    if(pair.second.col != DRAMConfig::get().columns()) {
-      addrs.push_back(pair.second);
+    if(id_to_addr_map[pair.first].col != DRAMConfig::get().columns()) {
+      addrs.push_back(id_to_addr_map[pair.first]);
     }
   }
 
