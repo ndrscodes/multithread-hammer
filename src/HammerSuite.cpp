@@ -39,9 +39,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   std::random_device rd;
   std::uniform_int_distribution shift_dist(2, 64);
   std::vector<PatternAddressMapper> mappers(patterns.size());
+  size_t thread_id = 0;
 
   for(int loc = 0; loc < locations; loc++) {
-    size_t thread_id = 0;
     bool sync_each = rand() % 2 == 0;
    
     //this should be sufficient to determine the ref threshold.
@@ -50,7 +50,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
     DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
 
     for(int i = 0; i < patterns.size(); i++) {
-      printf("mapping pattern with %lu aggressors to addresses...", patterns[i].aggressors.size());
+      printf("mapping pattern with %lu aggressors to addresses...\n", patterns[i].aggressors.size());
      
       //randomize as described in FuzzyHammerer in ZenHammer.
       std::shuffle(patterns[i].agg_access_patterns.begin(), patterns[i].agg_access_patterns.end(), engine);
@@ -68,6 +68,8 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       }
       mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
       std::vector<volatile char *> pattern = mappers[i].export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
+
+      printf("...done! Thread %lu will hammer bank %lu.\n", thread_id, DRAMAddr((void *)pattern.front()).actual_bank());
 
       printf("starting thread for pattern with %lu aggressors on location %d...\n",
              patterns[i].aggressors.size(), loc);
