@@ -56,7 +56,7 @@ LocationReport HammerSuite::fuzz_location(std::vector<HammeringPattern> &pattern
     PatternAddressMapper mapper;
     mappers[i] = mapper;
     mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
-    std::vector<volatile char *> pattern = mapper.export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
+    std::vector<volatile char *> pattern = mappers[i].export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
 
     printf("starting thread for pattern with %lu aggressors...\n",
            patterns[i].aggressors.size());
@@ -156,6 +156,6 @@ void HammerSuite::hammer_fn(size_t id,
 #if SYNC_TO_REF
   timer.wait_for_refresh(DRAMAddr((void *)pattern[0]).actual_bank());
 #endif
-  assert(jitter.hammer_pattern(params, true) == 0);
+  jitter.hammer_pattern(params, true);
   jitter.cleanup();
 }
