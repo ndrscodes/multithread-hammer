@@ -56,7 +56,7 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
   assembler.pop(asmjit::x86::rdi);
 }
 
-HammerFunc Jitter::jit(std::vector<volatile char *> &addresses, size_t acts, bool sync_each_iteration) {
+HammerFunc Jitter::jit(std::vector<volatile char *> &addresses, std::vector<volatile char *> &non_accessed_rows, size_t acts, bool sync_each_iteration) {
   asmjit::CodeHolder h;
   h.init(rt.environment(), rt.cpuFeatures());
   asmjit::x86::Assembler assembler(&h);
@@ -66,12 +66,12 @@ HammerFunc Jitter::jit(std::vector<volatile char *> &addresses, size_t acts, boo
   used_ptrs.insert(addresses.front()); 
 
   assembler.mov(asmjit::x86::rsi, 0);
-  jit_ref_sync(assembler, DRAMAddr((void *)addresses.back()));
+  jit_ref_sync(assembler, DRAMAddr((void *)non_accessed_rows.back()));
 
   auto loop_start = assembler.newLabel();
   assembler.bind(loop_start);
   if(sync_each_iteration) {
-    jit_ref_sync(assembler, DRAMAddr((void *)addresses.back()));
+    jit_ref_sync(assembler, DRAMAddr((void *)non_accessed_rows.back()));
   }
 
   //get the current timestamp and push it to the stack
@@ -125,7 +125,7 @@ HammerFunc Jitter::jit(std::vector<volatile char *> &addresses, size_t acts, boo
   assembler.or_(asmjit::x86::rdx, asmjit::x86::rax);
   assembler.push(asmjit::x86::rdx);
 
-  jit_ref_sync(assembler, DRAMAddr((void *)addresses.back()));
+  jit_ref_sync(assembler, DRAMAddr((void *)non_accessed_rows.back()));
 
   //pop newest timestamp to rax, oldest to rdx
   assembler.pop(asmjit::x86::rax);

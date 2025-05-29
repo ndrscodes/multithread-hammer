@@ -124,7 +124,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
 void HammerSuite::hammer_fn(size_t id, std::vector<volatile char *> &pattern, std::vector<volatile char *> &non_accessed_rows, std::barrier<> &start_barrier, uint64_t &timing, RefreshTimer &timer, bool sync_each_ref) {
   Jitter jitter(timer.get_refresh_threshold());
 
-  HammerFunc fn = jitter.jit(pattern, 5000000, sync_each_ref);
+  HammerFunc fn = jitter.jit(pattern, non_accessed_rows, 5000000, sync_each_ref);
 
   for(int i = 0; i < 10000; i++) {
     *non_accessed_rows[i % non_accessed_rows.size()];
