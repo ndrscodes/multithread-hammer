@@ -41,11 +41,9 @@ int main(int argc, char* argv[]) {
 
   Memory alloc = Memory(true);
   printf("creating allocation...\n");
-  alloc.allocate_memory(GB(1));
+  alloc.allocate_memory(DRAMConfig::get().memory_size());
   printf("allocated %lu bytes of memory.\n", alloc.get_allocation_size());
-  alloc.initialize(DATA_PATTERN::RANDOM); //must be random because the flip check only handles random values
-  printf("initialized memory with strategy FENCE.\n");
-  DRAMAddr::initialize_mapping(0, (volatile char *)alloc.get_starting_address());
+  DRAMAddr::initialize_mapping(0, alloc.get_starting_address());
 
   HammerSuite suite(alloc);
   printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
