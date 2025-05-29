@@ -24,7 +24,7 @@ RandomPatternBuilder::RandomPatternBuilder() {
 
 size_t RandomPatternBuilder::fill_abstract_pattern(std::vector<RandomAggressor> &aggressors, size_t size) {
   int slots = size;
-  size_t res = (size_t) slots;
+  size_t res = 0;
   std::uniform_real_distribution<> distance_dist(1.5, slots / 10.);
   std::uniform_int_distribution<> offset_dist(0, size * 0.75);
   std::vector<int> ids(slots / 10);
@@ -47,6 +47,7 @@ size_t RandomPatternBuilder::fill_abstract_pattern(std::vector<RandomAggressor> 
       .id = id,
       .offset = offset > (size / 3) ? offset : 0
     });
+    res++;
   } while(slots > 0);
   return res;
 }
@@ -59,14 +60,16 @@ HammeringPattern RandomPatternBuilder::create_advanced_pattern(size_t max_activa
   std::vector<Aggressor> full_pattern;
   std::vector<AggressorAccessPattern> patterns;
   std::set<int> seen;
+
   for(int i = 0; i < iterations; i++) {
+    int agg_id = 0;
     std::vector<RandomAggressor> abstract_pattern;
     fill_abstract_pattern(abstract_pattern, slots);
     std::vector<bool> occupations(slots);
     std::vector<Aggressor> pattern(slots);
     for(auto agg : abstract_pattern) {
       uint16_t distance_modifier = 0;
-      seen.insert(agg.id);
+      seen.insert(agg_id);
       for(float j = agg.offset; j < slots; j += agg.distance) {
         if(occupations[(int)j]) {
           //increases the frequency if we were not able to place the aggressor in the pattern in any iteration
@@ -83,9 +86,10 @@ HammeringPattern RandomPatternBuilder::create_advanced_pattern(size_t max_activa
           agg.distance++;
           distance_modifier--;
         }
-        pattern[(int)j] = Aggressor(agg.id);
+        pattern[(int)j] = Aggressor(agg_id);
         occupations[(int)j] = true;
       }
+      agg_id++;
     }
     full_pattern.insert(full_pattern.end(), pattern.begin(), pattern.end());
   }
@@ -97,12 +101,17 @@ HammeringPattern RandomPatternBuilder::create_advanced_pattern(size_t max_activa
     full_pattern[i].id = rand() % (seen.size() - 1);
   }
 
-  for(int i = 0; i < seen.size(); i++) {
+  std::vector<int> seen_ids(seen.size());
+  for(int id : seen) {
+    seen_ids.push_back(id);
+  }
+
+  for(int i = 0; i < seen_ids.size(); i++) {
     std::vector<Aggressor> aggressors;
-    aggressors.push_back(Aggressor(i));
-    if(i + 1 < seen.size()) {
+    aggressors.push_back(Aggressor(seen_ids[i]));
+    if(i + 1 < seen_ids.size()) {
       i++;
-      aggressors.push_back(Aggressor(i));
+      aggressors.push_back(Aggressor(seen_ids[i]));
     }
     patterns.push_back(AggressorAccessPattern(100, 100, aggressors, 100));
   }
