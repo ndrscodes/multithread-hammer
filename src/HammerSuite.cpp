@@ -38,11 +38,11 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   std::vector<LocationReport> report;
   std::random_device rd;
   std::uniform_int_distribution shift_dist(2, 64);
+  std::vector<PatternAddressMapper> mappers(patterns.size());
 
   for(int loc = 0; loc < locations; loc++) {
     size_t thread_id = 0;
     bool sync_each = rand() % 2 == 0;
-    std::vector<PatternAddressMapper> mappers(patterns.size());
    
     //this should be sufficient to determine the ref threshold.
     RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
