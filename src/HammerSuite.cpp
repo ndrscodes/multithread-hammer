@@ -47,6 +47,12 @@ LocationReport HammerSuite::fuzz_location(std::vector<HammeringPattern> &pattern
     mapper.randomize_addresses(params, patterns[i].agg_access_patterns, true);
     std::vector<volatile char *> pattern = mapper.export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
     std::vector<volatile char *> non_accessed_rows = mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
+    for(int i = 0; i < non_accessed_rows.size(); i++) {
+      if(non_accessed_rows[i] < memory.get_starting_address() || non_accessed_rows[i] >= memory.get_starting_address() + memory.get_allocation_size()) {
+        non_accessed_rows.erase(non_accessed_rows.begin() + i);
+      }
+    }
+
     RefreshTimer timer(non_accessed_rows.back());
     mappers[i] = mapper;
 
