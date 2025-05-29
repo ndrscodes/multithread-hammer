@@ -68,8 +68,16 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       }
       mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
       std::vector<volatile char *> pattern = mappers[i].export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
+      
+      DRAMAddr first;
+      for(auto ptr : pattern) {
+        if(ptr == nullptr) {
+          continue;
+        }
+        first = DRAMAddr((void *)ptr);
+      }
 
-      printf("...done! Thread %lu will hammer bank %lu.\n", thread_id, DRAMAddr((void *)pattern.front()).actual_bank());
+      printf("...done! Thread %lu will hammer bank %lu (first address in pattern was %s).\n", thread_id, first.actual_bank(), first.to_string().c_str());
 
       printf("starting thread for pattern with %lu aggressors on location %d...\n",
              patterns[i].aggressors.size(), loc);
@@ -92,12 +100,14 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
     }
 
     LocationReport locationReport;
+    int total_flips = 0;
     for(int i = 0; i < mappers.size(); i++) {
       //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
       memory.check_memory(mappers[i], true, true);
       PatternReport report {
         .flips = mappers[i].count_bitflips()
       };
+      total_flips += report.flips;
       if(report.flips) {
         printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.", 
                report.flips, 
@@ -106,6 +116,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       }
       locationReport.add_report(report);
     }
+
+    printf("completed hammering run for location %d. Found %d flips in total on this location combination.\n", loc, total_flips);
+    printf("\n###########################################################################################\n\n");
 
     report.push_back(locationReport);
   }
