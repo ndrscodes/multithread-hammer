@@ -90,6 +90,13 @@ HammeringPattern RandomPatternBuilder::create_advanced_pattern(size_t max_activa
     full_pattern.insert(full_pattern.end(), pattern.begin(), pattern.end());
   }
 
+  for(int i = 0; i < full_pattern.size(); i++) {
+    if(full_pattern[i].id >= 0) {
+      continue;
+    }
+    full_pattern[i].id = rand() % (full_pattern.size() - 1);
+  }
+
   for(int i = 0; i < seen.size(); i++) {
     std::vector<Aggressor> aggressors;
     aggressors.push_back(Aggressor(i));
