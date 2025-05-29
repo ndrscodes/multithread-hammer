@@ -1,5 +1,5 @@
 #pragma once
-#include "PatternBuilder.hpp"
+#include <cmath>
 #include <cstdint>
 #include <emmintrin.h>
 #include <vector>
@@ -10,9 +10,9 @@ typedef struct {
   uint64_t timestamp;
 } measurement;
 
-class Timer {
+class RefreshTimer {
   private:
-    PatternBuilder &builder;
+    volatile char *measurement_addr;
     uint64_t refresh_threshold;
     uint64_t cycles_per_refresh;
     double_t get_average(std::vector<uint64_t> &measurements);
@@ -22,7 +22,7 @@ class Timer {
     std::vector<uint64_t> extract_timestamps(std::vector<measurement> &measurements);
     std::vector<uint64_t> extract_timings(std::vector<measurement> &measurements);
   public:
-    Timer(PatternBuilder &builder);
+    RefreshTimer(volatile char *measurement_addr);
     uint64_t get_refresh_threshold();
     uint64_t get_cycles_per_refresh();
     uint64_t reanalyze();
@@ -30,7 +30,7 @@ class Timer {
     static uint64_t current_timestamp();
 };
 
-inline measurement Timer::measure(volatile char *addr) {
+inline measurement RefreshTimer::measure(volatile char *addr) {
   uint32_t tsc_aux;
   _mm_clflushopt((void *)addr);
   _mm_mfence();
@@ -47,7 +47,7 @@ inline measurement Timer::measure(volatile char *addr) {
   return { end - start, start };
 }
 
-inline uint64_t Timer::current_timestamp() {
+inline uint64_t RefreshTimer::current_timestamp() {
   uint32_t tsc_aux;
   return __rdtscp(&tsc_aux);
 }

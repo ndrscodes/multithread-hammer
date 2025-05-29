@@ -8,14 +8,24 @@ add_library(
   HammerSuite.cpp
   Allocation.cpp
   FuzzReport.cpp
-  Timer.cpp
+  RefreshTimer.cpp
   LocationReport.cpp
   Logger.cpp
   Jitter.cpp
+  HammeringPattern.cpp
+  Aggressor.cpp
+  AggressorAccessPattern.cpp
+  PatternAddressMapper.cpp
+  Memory.cpp
+  PatternBuilder.cpp
+  FuzzingParameterSet.cpp
+  BitFlip.cpp
+  CodeJitter.cpp
+  Enums.cpp
 )
 
 target_include_directories(src PUBLIC
     "${CMAKE_SOURCE_DIR}/include" # This refers to the 'src' directory itself
 )
 
-target_link_libraries(src PRIVATE asmjit::asmjit)
+target_link_libraries(src PUBLIC asmjit::asmjit)

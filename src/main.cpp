@@ -5,8 +5,9 @@
 #include <vector>
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
-#include "FuzzReport.hpp"
+#include "GlobalDefines.hpp"
 #include "HammerSuite.hpp"
+#include "Memory.hpp"
 #include <sys/resource.h>
 
 struct Args {
@@ -38,21 +39,19 @@ int main(int argc, char* argv[]) {
 
   Args args = parse_args(argc, argv);
 
-  Allocation alloc;
+  Memory alloc = Memory(true);
   printf("creating allocation...\n");
-  alloc.allocate();
-  printf("allocated %lu bytes of memory.\n", alloc.get_size());
-  alloc.initialize();
+  alloc.allocate_memory(GB(1));
+  printf("allocated %lu bytes of memory.\n", alloc.get_allocation_size());
+  alloc.initialize(DATA_PATTERN::RANDOM); //must be random because the flip check only handles random values
   printf("initialized memory with strategy FENCE.\n");
-  DRAMAddr::initialize_mapping(0, (volatile char *)alloc.get_start_address());
+  DRAMAddr::initialize_mapping(0, (volatile char *)alloc.get_starting_address());
 
-  PatternBuilder builder(alloc);
-
-  HammerSuite suite(builder);
+  HammerSuite suite(alloc);
   printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
   printf("initialized location parameter to %lu.\n", args.locations);
   printf("starting hammering run!\n");
   std::vector<FuzzReport> reports = suite.auto_fuzz(args.locations, args.runtime_limit);
-  size_t full_check = builder.full_alloc_check();
+  size_t full_check = alloc.check_memory(alloc.get_starting_address(), alloc.get_starting_address() + alloc.get_allocation_size());
   printf("full check found %lu flips.\n", full_check);
 }

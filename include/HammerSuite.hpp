@@ -4,19 +4,22 @@
 #include <map>
 #include <vector>
 #include "FuzzReport.hpp"
-#include "PatternBuilder.hpp"
+#include "FuzzingParameterSet.hpp"
+#include "HammeringPattern.hpp"
+#include "Memory.hpp"
+#include "PatternAddressMapper.hpp"
 #include "LocationReport.hpp"
-#include "Timer.hpp"
+#include "RefreshTimer.hpp"
 
 class HammerSuite {
 private:
   size_t current_pattern_id;
-  std::map<size_t, Pattern> patterns;
-  void hammer_fn(size_t id, Pattern &pattern, std::barrier<> &start_barrier, uint64_t &timing, Timer &timer, bool sync_each_ref);
-  PatternBuilder &builder;
+  std::map<size_t, HammeringPattern> patterns;
+  void hammer_fn(size_t id, std::vector<volatile char *> &pattern, std::vector<volatile char *> &non_accessed_rows, std::barrier<> &start_barrier, uint64_t &timing, RefreshTimer &timer, bool sync_each_ref);
+  Memory &memory;
 public:
-  HammerSuite(PatternBuilder &builder);
+  HammerSuite(Memory &memory);
   FuzzReport fuzz(size_t locations, size_t patterns);
-  LocationReport fuzz_location(std::vector<PatternContainer> &patterns, bool allow_recalculation);
+  LocationReport fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params);
   std::vector<FuzzReport> auto_fuzz(size_t locations_per_fuzz, size_t max_runtime_in_seconds);
 };

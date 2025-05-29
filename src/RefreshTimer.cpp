@@ -1,17 +1,18 @@
-#include "Timer.hpp"
+#include "RefreshTimer.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <cstdio>
 #include <sched.h>
 #include <vector>
 #include <math.h>
 #define PEAK_DECISION_MULTIPLIER 1.03
 
-Timer::Timer(PatternBuilder &builder) : builder(builder) {
+RefreshTimer::RefreshTimer(volatile char *measurement_addr) : measurement_addr(measurement_addr) {
   refresh_threshold = reanalyze();
 }
 
-double_t Timer::get_average(std::vector<uint64_t> &measurements) {
+double_t RefreshTimer::get_average(std::vector<uint64_t> &measurements) {
   double_t sum = 0;
   for(auto measurement : measurements) {
     sum += measurement;
@@ -19,7 +20,7 @@ double_t Timer::get_average(std::vector<uint64_t> &measurements) {
   return sum / measurements.size();
 }
 
-uint64_t Timer::get_median(std::vector<uint64_t> &measurements) {
+uint64_t RefreshTimer::get_median(std::vector<uint64_t> &measurements) {
   std::vector<uint64_t> med(measurements);
   uint64_t mid = med.size() / 2;
   std::nth_element(med.begin(), med.begin() + measurements.size() / 2, med.end());
@@ -28,24 +29,24 @@ uint64_t Timer::get_median(std::vector<uint64_t> &measurements) {
   return med[mid];
 }
 
-std::vector<measurement> Timer::get_measurements(size_t n) {
+std::vector<measurement> RefreshTimer::get_measurements(size_t n) {
   std::vector<measurement> measurements(n);
-  volatile char *addr = (volatile char *)builder.get_random_address().to_virt();
+  volatile char *addr = measurement_addr;
   for(size_t i = 0; i < n; i++) {
     measurements[i] = measure(addr);
   }
   return measurements;
 }
 
-uint64_t Timer::get_refresh_threshold() {
+uint64_t RefreshTimer::get_refresh_threshold() {
   return refresh_threshold;
 }
 
-uint64_t Timer::get_cycles_per_refresh() {
+uint64_t RefreshTimer::get_cycles_per_refresh() {
   return cycles_per_refresh;
 }
 
-std::vector<uint64_t> Timer::extract_timings(std::vector<measurement> &measurements) {
+std::vector<uint64_t> RefreshTimer::extract_timings(std::vector<measurement> &measurements) {
   std::vector<uint64_t> timings(measurements.size());
   for(int i = 0; i < measurements.size(); i++) {
     timings[i] = measurements[i].timing;
@@ -53,7 +54,7 @@ std::vector<uint64_t> Timer::extract_timings(std::vector<measurement> &measureme
   return timings;
 }
 
-std::vector<uint64_t> Timer::extract_timestamps(std::vector<measurement> &measurements) {
+std::vector<uint64_t> RefreshTimer::extract_timestamps(std::vector<measurement> &measurements) {
   std::vector<uint64_t> timestamps(measurements.size());
   for(int i = 0; i < measurements.size(); i++) {
     timestamps[i] = measurements[i].timestamp;
@@ -61,10 +62,10 @@ std::vector<uint64_t> Timer::extract_timestamps(std::vector<measurement> &measur
   return timestamps;
 }
 
-uint64_t Timer::wait_for_refresh(size_t bank) {
+uint64_t RefreshTimer::wait_for_refresh(size_t bank) {
   uint64_t i = 0;
   uint64_t timing;
-  volatile char *address = (volatile char *)builder.get_random_address(bank).to_virt();
+  volatile char *address = measurement_addr;
   do {
     timing = measure(address).timing;
     if(timing > refresh_threshold * 3) {
@@ -79,7 +80,7 @@ uint64_t Timer::wait_for_refresh(size_t bank) {
   return i;
 }
 
-uint64_t Timer::reanalyze() {
+uint64_t RefreshTimer::reanalyze() {
   //choose a new pattern to use for timing analysis
   uint64_t previous = 0;
   uint64_t threshold = 0;

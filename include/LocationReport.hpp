@@ -1,10 +1,9 @@
 #pragma once
-#include "DRAMAddr.hpp"
 #include <vector>
-#include "PatternBuilder.hpp"
+#include "HammeringPattern.hpp"
 
 typedef struct {
-  Pattern pattern;
+  HammeringPattern pattern;
   size_t flips;
 } PatternReport;
 
