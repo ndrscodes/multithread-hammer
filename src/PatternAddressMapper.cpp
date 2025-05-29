@@ -528,18 +528,23 @@ void PatternAddressMapper::shift_mapping(int rows, const std::unordered_set<Aggr
     }
   }
 
+  min_row = -1;
+  max_row = 0;
+
   for (auto &agg_acc_patt : aggressor_to_addr) {
     // if aggs_to_move is empty, we consider it as 'move all aggressors'; otherwise we check whether the current
     // aggressor ID is in aggs_to_move prior shifting the aggressor by the given number of rows (param: rows)
     if (aggs_to_move.empty() || movable_ids.count(agg_acc_patt.first) > 0) {
       agg_acc_patt.second.row += rows;
       occupied_rows.insert(static_cast<int>(agg_acc_patt.second.row));
+      if(agg_acc_patt.second.row < min_row) {
+        min_row = agg_acc_patt.second.row;
+      }
+      if(agg_acc_patt.second.row > max_row) {
+        max_row = agg_acc_patt.second.row;
+      }
     }
   }
-
-  // this works as sets are always ordered
-  min_row = *occupied_rows.begin();
-  max_row = *occupied_rows.rbegin();
 }
 
 CodeJitter &PatternAddressMapper::get_code_jitter() const {
