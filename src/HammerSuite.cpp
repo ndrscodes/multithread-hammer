@@ -21,6 +21,7 @@
 #include "Memory.hpp"
 #include "PatternAddressMapper.hpp"
 #include "PatternBuilder.hpp"
+#include "RandomPatternBuilder.hpp"
 #include "RefreshTimer.hpp"
 #include "Jitter.hpp"
 #define SYNC_TO_REF 1
@@ -96,9 +97,15 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
   FuzzingParameterSet parameters;
   parameters.randomize_parameters();
   std::vector<HammeringPattern> fuzz_patterns(patterns);
+  #define USE_RANDOM_PATTERN_GEN 1
   for(auto& pattern : fuzz_patterns) {
+#if USE_RANDOM_PATTERN_GEN
+    RandomPatternBuilder random_pattern_builder;
+    pattern = random_pattern_builder.create_advanced_pattern(rand() % 2048);
+#else
     PatternBuilder pattern_builder(pattern);
     pattern_builder.generate_frequency_based_pattern(parameters);
+#endif
   }
 
   printf("running %lu patterns over %lu locations...\n", patterns, locations);

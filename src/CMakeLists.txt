@@ -22,6 +22,7 @@ add_library(
   BitFlip.cpp
   CodeJitter.cpp
   Enums.cpp
+  RandomPatternBuilder.cpp
 )
 
 target_include_directories(src PUBLIC
