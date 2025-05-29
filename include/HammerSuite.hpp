@@ -20,6 +20,6 @@ private:
 public:
   HammerSuite(Memory &memory);
   FuzzReport fuzz(size_t locations, size_t patterns);
-  LocationReport fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params);
+  std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations);
   std::vector<FuzzReport> auto_fuzz(size_t locations_per_fuzz, size_t max_runtime_in_seconds);
 };
