@@ -40,14 +40,14 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   std::uniform_int_distribution shift_dist(2, 64);
   std::vector<PatternAddressMapper> mappers(patterns.size());
   size_t thread_id = 0;
+  RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
+  //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
+  DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
 
   for(int loc = 0; loc < locations; loc++) {
     bool sync_each = rand() % 2 == 0;
    
     //this should be sufficient to determine the ref threshold.
-    RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
-    //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
-    DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
 
     for(int i = 0; i < patterns.size(); i++) {
       printf("mapping pattern with %lu aggressors to addresses...\n", patterns[i].aggressors.size());
