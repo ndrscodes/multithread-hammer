@@ -65,8 +65,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
         //TODO: use an atomic bank counter instead.
         PatternAddressMapper mapper;
         mappers[i] = mapper;
+        mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
+        printf("this was the first run for mapper %d. Randomization completed.\n", i);
       }
-      mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
       std::vector<volatile char *> pattern = mappers[i].export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
       
       DRAMAddr first;
