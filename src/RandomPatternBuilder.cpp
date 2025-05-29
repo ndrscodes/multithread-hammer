@@ -54,6 +54,9 @@ size_t RandomPatternBuilder::fill_abstract_pattern(std::vector<RandomAggressor> 
 
 HammeringPattern RandomPatternBuilder::create_advanced_pattern(size_t max_activations) {
   HammeringPattern hammering_pattern;
+  if(max_activations < 20) {
+    max_activations = 20;
+  }
   std::uniform_int_distribution<> slot_dist(20, max_activations);
   int slots = slot_dist(engine);
   int iterations = max_activations / slots;
