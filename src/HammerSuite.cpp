@@ -137,14 +137,21 @@ void HammerSuite::hammer_fn(size_t id,
                             std::barrier<> &start_barrier, 
                             RefreshTimer &timer, 
                             bool sync_each_ref) {
+#define USE_ZEN_JITTER 0
+
+  std::vector<volatile char *> non_accessed_rows = mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
+#if USE_ZEN_JITTER
   CodeJitter &jitter = mapper.get_code_jitter();
   jitter.jit_strict(params.flushing_strategy, 
                     params.fencing_strategy, 
                     pattern, 
                     FENCE_TYPE::MFENCE, 
                     params.get_hammering_total_num_activations());
-
-  std::vector<volatile char *> non_accessed_rows = mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
+#else 
+  Jitter jitter(timer.get_refresh_threshold());
+  HammerFunc fn = jitter.jit(pattern, non_accessed_rows, params.get_hammering_total_num_activations(), false);
+#endif
+  
   for(int i = 0; i < 10000; i++) {
     *non_accessed_rows[i % (non_accessed_rows.size() - 1)];
   }
@@ -156,6 +163,11 @@ void HammerSuite::hammer_fn(size_t id,
 #if SYNC_TO_REF
   timer.wait_for_refresh(DRAMAddr((void *)pattern[0]).actual_bank());
 #endif
+#if USE_ZEN_JITTER
   jitter.hammer_pattern(params, true);
   jitter.cleanup();
+#else
+  size_t timing = fn();
+  printf("thread %lu took %lu cycles\n", id, timing);
+#endif
 }
