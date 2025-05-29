@@ -94,7 +94,7 @@ HammeringPattern RandomPatternBuilder::create_advanced_pattern(size_t max_activa
     if(full_pattern[i].id >= 0) {
       continue;
     }
-    full_pattern[i].id = rand() % (full_pattern.size() - 1);
+    full_pattern[i].id = rand() % (seen.size() - 1);
   }
 
   for(int i = 0; i < seen.size(); i++) {
