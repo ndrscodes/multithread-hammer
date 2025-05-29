@@ -58,8 +58,6 @@ LocationReport HammerSuite::fuzz_location(std::vector<HammeringPattern> &pattern
     mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
     std::vector<volatile char *> pattern = mapper.export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
 
-    mappers[i] = mapper;
-
     printf("starting thread for pattern with %lu aggressors...\n",
            patterns[i].aggressors.size());
 
@@ -67,7 +65,7 @@ LocationReport HammerSuite::fuzz_location(std::vector<HammeringPattern> &pattern
       &HammerSuite::hammer_fn, 
       this, 
       thread_id++, 
-      std::ref(pattern),
+      pattern,
       std::ref(mappers[i]),
       std::ref(params),
       std::ref(barrier), 
@@ -133,7 +131,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
 }
 
 void HammerSuite::hammer_fn(size_t id,
-                            std::vector<volatile char *> &pattern,
+                            std::vector<volatile char *> pattern,
                             PatternAddressMapper &mapper,
                             FuzzingParameterSet &params,
                             std::barrier<> &start_barrier, 
