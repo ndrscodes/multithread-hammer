@@ -127,7 +127,7 @@ void HammerSuite::hammer_fn(size_t id, std::vector<volatile char *> &pattern, st
   HammerFunc fn = jitter.jit(pattern, non_accessed_rows, 5000000, sync_each_ref);
 
   for(int i = 0; i < 10000; i++) {
-    *non_accessed_rows[i % non_accessed_rows.size()];
+    *non_accessed_rows[i % (non_accessed_rows.size() - 1)];
   }
 
   _mm_mfence();

@@ -1,8 +1,8 @@
-#include "Memory/DramAnalyzer.hpp"
+#include "DramAnalyzer.hpp"
 
-#include "Fuzzer/CodeJitter.hpp"
-#include "Memory/DRAMAddr.hpp"
-#include "Memory/DRAMConfig.hpp"
+#include "CodeJitter.hpp"
+#include "DRAMAddr.hpp"
+#include "DRAMConfig.hpp"
 #include <cmath>
 #include <x86intrin.h>
 
