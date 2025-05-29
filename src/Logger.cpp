@@ -1,11 +1,14 @@
 #include "Logger.hpp"
 #include <iostream>
 #include <GlobalDefines.hpp>
+#include <mutex>
 
 // initialize the singleton instance
 Logger Logger::instance; /* NOLINT */
 
 Logger::Logger() = default;
+
+std::mutex mutex;
 
 void Logger::initialize() {
   instance.logfile = std::ofstream();
@@ -23,29 +26,38 @@ void Logger::close() {
 }
 
 void Logger::log_info(const std::string &message, bool newline) {
+  mutex.lock();
   instance.logfile << FC_CYAN "[+] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_highlight(const std::string &message, bool newline) {
+  mutex.lock();
   instance.logfile << FC_MAGENTA << FF_BOLD << "[+] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_error(const std::string &message, bool newline) {
+  mutex.lock();
   instance.logfile << FC_RED "[-] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_data(const std::string &message, bool newline) {
+  mutex.lock();
   instance.logfile << message;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_analysis_stage(const std::string &message, bool newline) {
+  mutex.lock();
   std::stringstream ss;
   ss << FC_CYAN_BRIGHT "████  " << message << "  ";
   // this makes sure that all log analysis stage messages have the same length
@@ -54,6 +66,7 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
   instance.logfile << ss.str();
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_debug(const std::string &message, bool newline) {
@@ -89,6 +102,7 @@ void Logger::log_timestamp() {
 
 void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsigned char actual_value,
                          unsigned char expected_value, unsigned long timestamp, bool newline) {
+  mutex.lock();
   instance.logfile << FC_GREEN
                    << "[!] Flip " << std::hex << (void *) flipped_address << ", "
                    << std::dec << "row " << row_no << ", "
@@ -98,18 +112,23 @@ void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsign
                    << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_success(const std::string &message, bool newline) {
+  mutex.lock();
   instance.logfile << FC_GREEN << "[!] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_failure(const std::string &message, bool newline) {
+  mutex.lock();
   instance.logfile << FC_RED_BRIGHT << "[-] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
+  mutex.unlock();
 }
 
 void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_seconds) {

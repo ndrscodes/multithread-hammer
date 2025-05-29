@@ -7,6 +7,7 @@
 #include "DRAMConfig.hpp"
 #include "GlobalDefines.hpp"
 #include "HammerSuite.hpp"
+#include "Logger.hpp"
 #include "Memory.hpp"
 #include <sys/resource.h>
 
@@ -31,6 +32,7 @@ Args parse_args(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+  Logger::initialize();
   // give this process the highest CPU priority so it can hammer with less interruptions
   int ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret!=0) printf("Instruction setpriority failed.\n");
@@ -39,7 +41,7 @@ int main(int argc, char* argv[]) {
 
   Args args = parse_args(argc, argv);
 
-  Memory alloc = Memory(true);
+  Memory alloc(true);
   printf("creating allocation...\n");
   alloc.allocate_memory(DRAMConfig::get().memory_size());
   printf("allocated %lu bytes of memory.\n", alloc.get_allocation_size());
@@ -52,4 +54,5 @@ int main(int argc, char* argv[]) {
   std::vector<FuzzReport> reports = suite.auto_fuzz(args.locations, args.runtime_limit);
   size_t full_check = alloc.check_memory(alloc.get_starting_address(), alloc.get_starting_address() + alloc.get_allocation_size());
   printf("full check found %lu flips.\n", full_check);
+  Logger::close();
 }

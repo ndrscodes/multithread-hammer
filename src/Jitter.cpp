@@ -46,7 +46,8 @@ void Jitter::jit_ref_sync(asmjit::x86::Assembler &assembler, DRAMAddr sync_bank)
 
   //subtract the previous timestamp from the current
   assembler.sub(asmjit::x86::rax, asmjit::x86::r11);
-  
+  assembler.inc(asmjit::x86::rdi);
+
   assembler.cmp(asmjit::x86::rdi, 4);
   assembler.jb(start);
   //we jump to start if we were below refresh_threshold cycles

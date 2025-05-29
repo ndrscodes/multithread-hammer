@@ -15,7 +15,7 @@ class HammerSuite {
 private:
   size_t current_pattern_id;
   std::map<size_t, HammeringPattern> patterns;
-  void hammer_fn(size_t id, std::vector<volatile char *> &pattern, std::vector<volatile char *> &non_accessed_rows, std::barrier<> &start_barrier, uint64_t &timing, RefreshTimer &timer, bool sync_each_ref);
+  void hammer_fn(size_t id, std::vector<volatile char *> &pattern, PatternAddressMapper &mapper, FuzzingParameterSet &params, std::barrier<> &start_barrier, RefreshTimer &timer, bool sync_each_ref);
   Memory &memory;
 public:
   HammerSuite(Memory &memory);

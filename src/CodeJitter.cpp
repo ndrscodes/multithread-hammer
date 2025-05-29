@@ -113,9 +113,8 @@ void CodeJitter::jit_strict(
 
   // Get the inital aggressor for sync_ref_nonrepeating().
   auto hammer_bank = DRAMAddr((void*)aggressor_pairs.front()).bank;
-  // sync_bank is the same bank as hammer_bank, but it may be indexed differently due to differing MSBs.
-  auto sync_bank = DRAMAddr::translate_bank(0, 1, hammer_bank);
-  auto sync_ref_initial_aggr = DRAMAddr(sync_bank, 0, 0, /* mapping_id */ 1);
+  auto sync_bank = hammer_bank;
+  auto sync_ref_initial_aggr = DRAMAddr(sync_bank, 0, 0);
 
   sync_ref_nonrepeating(sync_ref_initial_aggr, DRAMConfig::get().get_sync_ref_threshold(), a);
 

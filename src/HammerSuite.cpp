@@ -1,6 +1,7 @@
 #include "HammerSuite.hpp"
 #include <algorithm>
 #include <barrier>
+#include <cassert>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +12,7 @@
 #include <thread>
 #include <vector>
 #include <x86intrin.h>
+#include "CodeJitter.hpp"
 #include "DRAMConfig.hpp"
 #include "Enums.hpp"
 #include "FuzzReport.hpp"
@@ -34,26 +36,28 @@ LocationReport HammerSuite::fuzz_location(std::vector<HammeringPattern> &pattern
   std::barrier barrier(patterns.size());
 
   size_t thread_id = 0;
-  std::vector<uint64_t> timings(patterns.size());
   bool sync_each = rand() % 2 == 0;
   std::vector<PatternAddressMapper> mappers(patterns.size());
+ 
+  //this should be sufficient to determine the ref threshold.
+  RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
+  //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
+  DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
+
   for(int i = 0; i < patterns.size(); i++) {
     printf("mapping pattern with %lu aggressors to addresses...", patterns[i].aggressors.size());
    
     //randomize as described in FuzzyHammerer in ZenHammer.
     std::shuffle(patterns[i].agg_access_patterns.begin(), patterns[i].agg_access_patterns.end(), engine);
 
+    //strange, but we will do the mapping here as PatternAddressMapper uses a static bank counter.
+    //this could be a problem in multithreaded scenarios.
+    //TODO: use an atomic bank counter instead.
     PatternAddressMapper mapper;
-    mapper.randomize_addresses(params, patterns[i].agg_access_patterns, true);
+    mappers[i] = mapper;
+    mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
     std::vector<volatile char *> pattern = mapper.export_pattern(patterns[i], SCHEDULING_POLICY::DEFAULT);
-    std::vector<volatile char *> non_accessed_rows = mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
-    for(int i = 0; i < non_accessed_rows.size(); i++) {
-      if(non_accessed_rows[i] < memory.get_starting_address() || non_accessed_rows[i] >= memory.get_starting_address() + memory.get_allocation_size()) {
-        non_accessed_rows.erase(non_accessed_rows.begin() + i);
-      }
-    }
 
-    RefreshTimer timer(non_accessed_rows.back());
     mappers[i] = mapper;
 
     printf("starting thread for pattern with %lu aggressors...\n",
@@ -64,9 +68,9 @@ LocationReport HammerSuite::fuzz_location(std::vector<HammeringPattern> &pattern
       this, 
       thread_id++, 
       std::ref(pattern),
-      std::ref(non_accessed_rows),
+      std::ref(mappers[i]),
+      std::ref(params),
       std::ref(barrier), 
-      std::ref(timings[i]),
       std::ref(timer),
       sync_each
     );
@@ -78,8 +82,9 @@ LocationReport HammerSuite::fuzz_location(std::vector<HammeringPattern> &pattern
 
   LocationReport locationReport;
   for(int i = 0; i < mappers.size(); i++) {
+    //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
+    memory.check_memory(mappers[i], true, true);
     PatternReport report {
-//      .pattern = pattern.pattern,
       .flips = mappers[i].count_bitflips()
     };
     locationReport.add_report(report);
@@ -127,11 +132,21 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t
   return reports;
 }
 
-void HammerSuite::hammer_fn(size_t id, std::vector<volatile char *> &pattern, std::vector<volatile char *> &non_accessed_rows, std::barrier<> &start_barrier, uint64_t &timing, RefreshTimer &timer, bool sync_each_ref) {
-  Jitter jitter(timer.get_refresh_threshold());
+void HammerSuite::hammer_fn(size_t id,
+                            std::vector<volatile char *> &pattern,
+                            PatternAddressMapper &mapper,
+                            FuzzingParameterSet &params,
+                            std::barrier<> &start_barrier, 
+                            RefreshTimer &timer, 
+                            bool sync_each_ref) {
+  CodeJitter &jitter = mapper.get_code_jitter();
+  jitter.jit_strict(params.flushing_strategy, 
+                    params.fencing_strategy, 
+                    pattern, 
+                    FENCE_TYPE::MFENCE, 
+                    params.get_hammering_total_num_activations());
 
-  HammerFunc fn = jitter.jit(pattern, non_accessed_rows, 5000000, sync_each_ref);
-
+  std::vector<volatile char *> non_accessed_rows = mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
   for(int i = 0; i < 10000; i++) {
     *non_accessed_rows[i % (non_accessed_rows.size() - 1)];
   }
@@ -143,6 +158,6 @@ void HammerSuite::hammer_fn(size_t id, std::vector<volatile char *> &pattern, st
 #if SYNC_TO_REF
   timer.wait_for_refresh(DRAMAddr((void *)pattern[0]).actual_bank());
 #endif
-  timing = fn();
-  jitter.clean();
+  assert(jitter.hammer_pattern(params, true) == 0);
+  jitter.cleanup();
 }
