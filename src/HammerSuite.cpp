@@ -87,7 +87,7 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
   FuzzingParameterSet parameters;
   parameters.randomize_parameters();
   std::vector<HammeringPattern> fuzz_patterns(patterns);
-  for(auto pattern : fuzz_patterns) {
+  for(auto& pattern : fuzz_patterns) {
     PatternBuilder pattern_builder(pattern);
     pattern_builder.generate_frequency_based_pattern(parameters);
   }
