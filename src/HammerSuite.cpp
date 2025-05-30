@@ -177,7 +177,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
     return;
   }
 
-  size_t thread_flips[6];
+  size_t thread_flips[8];
 
   for(auto& report : effective_reports) {
     FuzzingParameterSet parameters = report.get_fuzzing_params();
@@ -189,7 +189,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
 
         std::vector<HammeringPattern> patterns;
         //check from 1 to 6 threads
-        for(int i = 0; i < 6; i++) {
+        for(int i = 0; i < 8; i++) {
           patterns.push_back(pattern_report.pattern);
           std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6);
           for(int j = 0; j < final_reports.size(); j++) {
@@ -213,7 +213,10 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
         }
       }
     }
-
+    
+    for(int i = 0; i < 8; i++) {
+      printf("fuzzing using %d threads yielded %lu flips.\n", i + 1, thread_flips[i]);
+    }
   }
 }
 
