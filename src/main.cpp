@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
     printf("will test effective patterns in multiple fuzzing runs after we are finished.\n");
   }
   printf("starting hammering run!\n");
-  std::vector<FuzzReport> reports = suite.auto_fuzz(args.locations, args.runtime_limit);
+  std::vector<FuzzReport> reports = suite.auto_fuzz(args);
   size_t full_check = alloc.check_memory(alloc.get_starting_address(), alloc.get_starting_address() + alloc.get_allocation_size());
   printf("full check found %lu flips.\n", full_check);
   Logger::close();
