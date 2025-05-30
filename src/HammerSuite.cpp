@@ -105,9 +105,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
     int total_flips = 0;
     for(int i = 0; i < mappers.size(); i++) {
       //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
-      memory.check_memory(mappers[i], true, true);
+      size_t flips = memory.check_memory(mappers[i], true, true);
       PatternReport report {
-        .flips = mappers[i].count_bitflips()
+        .flips = flips
       };
       if(report.flips) {
         report.pattern = patterns[i]; //if the pattern was effective, we are storing it to fuzz it later.

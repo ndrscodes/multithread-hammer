@@ -8,7 +8,7 @@ std::vector<PatternReport> LocationReport::get_reports() {
 
 size_t LocationReport::sum_flips() {
   size_t sum = 0;
-  for(auto report :  reports) {
+  for(auto report : reports) {
     sum += report.flips;
   }
   return sum;
