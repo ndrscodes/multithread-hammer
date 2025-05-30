@@ -23,7 +23,7 @@ Args parse_args(int argc, char* argv[]) {
     } else if((strcmp("-t", argv[i]) == 0 || strcmp("--threads", argv[i]) == 0) && i + 1 < argc) {
       args.threads = atoi(argv[i + 1]);
       i++;
-    } else if(strcmp("-f", argv[i]) || strcmp("--fuzz-effective", argv[i]) == 0) {
+    } else if(strcmp("-f", argv[i]) == 0 || strcmp("--fuzz-effective", argv[i]) == 0) {
       args.test_effective_patterns = true;
     }
   }
