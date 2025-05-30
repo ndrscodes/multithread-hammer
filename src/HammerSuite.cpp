@@ -17,6 +17,7 @@
 #include "Enums.hpp"
 #include "FuzzReport.hpp"
 #include "FuzzingParameterSet.hpp"
+#include "HammeringPattern.hpp"
 #include "LocationReport.hpp"
 #include "Memory.hpp"
 #include "PatternAddressMapper.hpp"
@@ -108,6 +109,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       PatternReport report {
         .flips = mappers[i].count_bitflips()
       };
+      if(report.flips) {
+        report.pattern = patterns[i]; //if the pattern was effective, we are storing it to fuzz it later.
+      }
       total_flips += report.flips;
       if(report.flips) {
         printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.", 
@@ -128,7 +132,6 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
 }
 
 FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
-  FuzzReport report;
   FuzzingParameterSet parameters;
   parameters.randomize_parameters();
   std::vector<HammeringPattern> fuzz_patterns(patterns);
@@ -144,6 +147,7 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
 #endif
   }
 
+  FuzzReport report(parameters);
   printf("running %lu patterns over %lu locations...\n", patterns, locations);
   for(auto location_report : fuzz_location(fuzz_patterns, parameters, locations)) {
     report.add_report(location_report);
@@ -154,21 +158,82 @@ FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
   return report;
 }
 
-std::vector<FuzzReport> HammerSuite::auto_fuzz(size_t locations_per_fuzz, size_t runtime_in_seconds) {
+void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
+  printf("\n##### BEGIN EFFECTIVE PATTERN ANALYSIS #####\n\n");
+
+  std::vector<FuzzReport> effective_reports;
+  size_t sum_flips = 0;
+  for(auto& report : patterns) {
+    size_t sum = report.sum_flips();
+    sum_flips += sum;
+    if(sum > 0) {
+      effective_reports.push_back(report);
+    }  
+  }
+  printf("we flipped %lu bits over %lu fuzzing runs.\n", sum_flips, patterns.size());
+
+  if(sum_flips == 0) {
+    printf("we did not flip any bits. Since there are no effective patterns, we will not continue analyzing.\n");
+    return;
+  }
+
+  size_t thread_flips[6];
+
+  for(auto& report : effective_reports) {
+    FuzzingParameterSet parameters = report.get_fuzzing_params();
+    for(auto location_report : report.get_reports()) {
+      for(auto pattern_report : location_report.get_reports()) {
+        if(pattern_report.flips == 0) {
+          continue;
+        }
+
+        std::vector<HammeringPattern> patterns;
+        //check from 1 to 6 threads
+        for(int i = 0; i < 6; i++) {
+          patterns.push_back(pattern_report.pattern);
+          std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6);
+          for(int j = 0; j < final_reports.size(); j++) {
+            if(final_reports[j].sum_flips() > 0) {
+              printf("[ANALYSIS] pattern %s produced %lu flips over %d threads on location %d!\n", 
+                     pattern_report.pattern.instance_id.c_str(),
+                     final_reports[j].sum_flips(),
+                     i,
+                     j);
+              auto loc_reports = final_reports[j].get_reports();
+              for(int k = 0; k < loc_reports.size(); k++) {
+                printf("[THREAD-ANALYSIS] thread %d produced %lu flips on pattern %s at location %d!\n",
+                       k, 
+                       loc_reports[k].flips,
+                       loc_reports[k].pattern.instance_id.c_str(),
+                       j);
+                thread_flips[k] += loc_reports[k].flips;
+              }
+            }
+          }
+        }
+      }
+    }
+
+  }
+}
+
+std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {
   std::mt19937 random;
-  std::uniform_int_distribution<> location_dist(1, 2); // at most 2 will be used per pattern
   std::vector<FuzzReport> reports;
   auto start = std::chrono::steady_clock::now();
-  auto max_duration = std::chrono::seconds(runtime_in_seconds);
+  auto max_duration = std::chrono::seconds(args.runtime_limit);
   while(std::chrono::steady_clock::now() - start < max_duration) {
-    size_t locations = location_dist(random);
-    reports.push_back(fuzz(locations_per_fuzz, locations));
+    reports.push_back(fuzz(args.threads, args.locations));
     printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
   }
 
   printf("stopping fuzzer since maximum duration of %lu seconds has passed. (%f)\n", 
          max_duration.count(),
          std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
+
+  if(args.test_effective_patterns) {
+    check_effective_patterns(reports);
+  }
 
   return reports;
 }

@@ -11,20 +11,20 @@
 #include "Memory.hpp"
 #include <sys/resource.h>
 
-struct Args {
-  uint64_t runtime_limit = 3600;
-  uint64_t locations = 3;
-};
-
 Args parse_args(int argc, char* argv[]) {
   Args args;
   for(int i = 1; i < argc; i++) {
     if((strncmp("-r", argv[i], 2) == 0 || strncmp("--runtime", argv[i], 9) == 0) && i + 1 < argc) {
       args.runtime_limit = atoi(argv[i + 1]);
       i++;
-    } else if((strncmp("-l", argv[i], 2) == 0 || strncmp("--locations", argv[i], 11) == 0) && i + 1 < argc) {
+    } else if((strcmp("-l", argv[i]) == 0 || strcmp("--locations", argv[i]) == 0) && i + 1 < argc) {
       args.locations = atoi(argv[i + 1]);
       i++;
+    } else if((strcmp("-t", argv[i]) == 0 || strcmp("--threads", argv[i]) == 0) && i + 1 < argc) {
+      args.threads = atoi(argv[i + 1]);
+      i++;
+    } else if(strcmp("-f", argv[i]) || strcmp("--fuzz-effective", argv[i]) == 0) {
+      args.test_effective_patterns = true;
     }
   }
 
@@ -49,7 +49,11 @@ int main(int argc, char* argv[]) {
 
   HammerSuite suite(alloc);
   printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
-  printf("initialized location parameter to %lu.\n", args.locations);
+  printf("initialized location parameter to %hu.\n", args.locations);
+  printf("initialized threads parameter to %hu\n", args.threads);
+  if(args.test_effective_patterns) {
+    printf("will test effective patterns in multiple fuzzing runs after we are finished.\n");
+  }
   printf("starting hammering run!\n");
   std::vector<FuzzReport> reports = suite.auto_fuzz(args.locations, args.runtime_limit);
   size_t full_check = alloc.check_memory(alloc.get_starting_address(), alloc.get_starting_address() + alloc.get_allocation_size());
