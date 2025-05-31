@@ -177,7 +177,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
     return;
   }
 
-  size_t thread_flips[8];
+  size_t thread_flips[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
   for(auto& report : effective_reports) {
     FuzzingParameterSet parameters = report.get_fuzzing_params();
