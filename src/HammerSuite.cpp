@@ -114,7 +114,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       }
       total_flips += report.flips;
       if(report.flips) {
-        printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.", 
+        printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.\n", 
                report.flips, 
                i, 
                DRAMAddr((void *)*mappers[i].get_victim_rows().begin()).actual_bank());
