@@ -2,6 +2,7 @@
 #include <barrier>
 #include <cstdint>
 #include <map>
+#include <random>
 #include <vector>
 #include "FuzzReport.hpp"
 #include "FuzzingParameterSet.hpp"
@@ -15,7 +16,8 @@ struct Args {
   uint64_t runtime_limit = 3600;
   uint16_t locations = 3;
   uint16_t threads = 1;
-  bool test_effective_patterns;
+  bool test_effective_patterns = false;
+  uint64_t seed = 0;
 };
 
 class HammerSuite {
@@ -25,8 +27,10 @@ private:
   void hammer_fn(size_t id, std::vector<volatile char *> pattern, PatternAddressMapper &mapper, FuzzingParameterSet &params, std::barrier<> &start_barrier, RefreshTimer &timer, bool sync_each_ref);
   void check_effective_patterns(std::vector<FuzzReport> &patterns);
   Memory &memory;
+  std::mt19937 engine;
 public:
   HammerSuite(Memory &memory);
+  HammerSuite(Memory &memory, uint64_t seed);
   FuzzReport fuzz(size_t locations, size_t patterns);
   std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations);
   std::vector<FuzzReport> auto_fuzz(Args args);

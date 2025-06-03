@@ -37,6 +37,7 @@ class PatternAddressMapper {
   std::unique_ptr<CodeJitter> code_jitter;
 
   PatternAddressMapper();
+  PatternAddressMapper(uint64_t seed);
 
   // copy constructor
   PatternAddressMapper(const PatternAddressMapper& other);

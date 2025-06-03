@@ -20,6 +20,13 @@ PatternAddressMapper::PatternAddressMapper()
   gen = std::mt19937(rd());
 }
 
+PatternAddressMapper::PatternAddressMapper(uint64_t seed)
+    : instance_id(uuid::gen_uuid()) { /* NOLINT */
+  code_jitter = std::make_unique<CodeJitter>();
+
+  gen = std::mt19937(seed);
+}
+
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
                                                const std::vector<AggressorAccessPattern> &agg_access_patterns,
                                                bool verbose) {
@@ -60,8 +67,6 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
           std::min(static_cast<double>(fuzzing_params.get_num_aggressors())/static_cast<double>(total_abstract_aggs),1.0)*100));
   Logger::log_info(format_string("[PatternAddressMapper] Probability to map multiple AAPs to same DRAM row = %d", prob2));
 
-  std::random_device device;
-  std::mt19937 engine(device()); // Seed the random number engine
   std::vector<int> weights = std::vector<int>({100-prob2, prob2});
   std::discrete_distribution<> dist(weights.begin(), weights.end()); // Create the distribution
 
@@ -102,7 +107,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
         // if use_seq_addresses is false, we just pick any random row number
         cur_row = (cur_row + (size_t) fuzzing_params.get_agg_inter_distance())%fuzzing_params.get_max_row_no();
 
-        bool map_to_existing_agg = dist(engine);
+        bool map_to_existing_agg = dist(gen);
         if (map_to_existing_agg && !occupied_rows.empty()) {
             auto idx = Range<size_t>(1, occupied_rows.size()).get_random_number(gen)-1;
             auto it = occupied_rows.begin();

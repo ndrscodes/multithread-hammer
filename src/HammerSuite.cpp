@@ -29,17 +29,22 @@
 
 size_t ACTIVATIONS = 6000000;
 
-HammerSuite::HammerSuite(Memory &memory) : memory(memory) {}
+HammerSuite::HammerSuite(Memory &memory) : memory(memory) {
+  engine = std::mt19937(std::random_device()());
+}
+
+HammerSuite::HammerSuite(Memory &memory, uint64_t seed) : memory(memory) {
+  engine = std::mt19937(seed);
+}
 
 std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
-  std::random_device dev;
-  std::mt19937 engine(dev());
+  
   std::vector<std::thread> threads(patterns.size());
   std::barrier barrier(patterns.size());
   std::vector<LocationReport> report;
-  std::random_device rd;
   std::uniform_int_distribution shift_dist(2, 64);
   std::vector<PatternAddressMapper> mappers(patterns.size());
+  std::mt19937 rand(params.get_seed() == 0 ? std::random_device()() : params.get_seed());
   size_t thread_id = 0;
   RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
   //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
@@ -54,17 +59,20 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       printf("mapping pattern with %lu aggressors to addresses...\n", patterns[i].aggressors.size());
      
       //randomize as described in FuzzyHammerer in ZenHammer.
-      std::shuffle(patterns[i].agg_access_patterns.begin(), patterns[i].agg_access_patterns.end(), engine);
+      std::shuffle(patterns[i].agg_access_patterns.begin(), patterns[i].agg_access_patterns.end(), rand);
 
       if(loc > 0) {
         //we have already filled the mappers and simply need to shift the mapping...
         //an empty set means we want to shift all of them. I don't know why. Maybe provide an overload instead?
-        mappers[i].shift_mapping(shift_dist(engine), {});
+        mappers[i].shift_mapping(shift_dist(rand), {});
       } else {
         //strange, but we will do the mapping here as PatternAddressMapper uses a static bank counter.
         //this could be a problem in multithreaded scenarios.
         //TODO: use an atomic bank counter instead.
         PatternAddressMapper mapper;
+        if(params.get_seed() > 0) {
+          mapper = PatternAddressMapper(params.get_seed());
+        }
         mappers[i] = mapper;
         mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
         printf("this was the first run for mapper %d. Randomization completed.\n", i);
@@ -132,7 +140,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
 }
 
 FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
-  FuzzingParameterSet parameters;
+  FuzzingParameterSet parameters(engine());
   parameters.randomize_parameters();
   std::vector<HammeringPattern> fuzz_patterns(patterns);
 

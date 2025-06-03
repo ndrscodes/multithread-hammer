@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <unordered_set>
 
 #include "FuzzingParameterSet.hpp"
@@ -7,6 +8,11 @@ PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
     : pattern(hammering_pattern), aggressor_id_counter(1) {
   std::random_device rd;
   gen = std::mt19937(rd());
+}
+
+PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern, uint64_t seed)
+    : pattern(hammering_pattern), aggressor_id_counter(1) {
+  gen = std::mt19937(seed);
 }
 
 size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <sstream>
 
 #ifdef ENABLE_JSON
@@ -14,6 +15,15 @@ FuzzingParameterSet::FuzzingParameterSet() : /* NOLINT */
     fencing_strategy(FENCING_STRATEGY::OMIT_FENCING) {
   std::random_device rd;
   gen = std::mt19937(rd());  // standard mersenne_twister_engine seeded with some random data
+
+  // call randomize_parameters once to initialize static values
+  randomize_parameters(false);
+}
+
+FuzzingParameterSet::FuzzingParameterSet(uint64_t seed) : /* NOLINT */
+    flushing_strategy(FLUSHING_STRATEGY::EARLIEST_POSSIBLE),
+    fencing_strategy(FENCING_STRATEGY::OMIT_FENCING) {
+  gen = std::mt19937(seed);  // standard mersenne_twister_engine seeded with the predetermined seed
 
   // call randomize_parameters once to initialize static values
   randomize_parameters(false);
@@ -306,4 +316,12 @@ void FuzzingParameterSet::set_agg_inter_distance(int agg_inter_dist) {
 
 void FuzzingParameterSet::set_use_sequential_aggressors(const Range<int> &use_seq_addresses) {
   FuzzingParameterSet::use_sequential_aggressors = use_seq_addresses;
+}
+
+void FuzzingParameterSet::set_seed(uint64_t seed) {
+  FuzzingParameterSet::seed = seed;
+}
+
+uint64_t FuzzingParameterSet::get_seed() {
+  return FuzzingParameterSet::seed;
 }

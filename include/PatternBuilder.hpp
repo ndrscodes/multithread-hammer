@@ -29,6 +29,7 @@ class PatternBuilder {
  public:
   /// default constructor that randomizes fuzzing parameters
   explicit PatternBuilder(HammeringPattern &hammering_pattern);
+  explicit PatternBuilder(HammeringPattern &hammering_pattern, uint64_t seed);
 
   void generate_frequency_based_pattern(FuzzingParameterSet &params, int pattern_length, int base_period);
 

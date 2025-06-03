@@ -25,6 +25,9 @@ Args parse_args(int argc, char* argv[]) {
       i++;
     } else if(strcmp("-f", argv[i]) == 0 || strcmp("--fuzz-effective", argv[i]) == 0) {
       args.test_effective_patterns = true;
+    } else if((strcmp("-s", argv[i]) == 0 || strcmp("--seed", argv[i]) == 0) && i + 1 < argc) {
+      args.seed = atoi(argv[i + 1]);
+      i++;
     }
   }
 
@@ -47,16 +50,24 @@ int main(int argc, char* argv[]) {
   printf("allocated %lu bytes of memory.\n", alloc.get_allocation_size());
   DRAMAddr::initialize_mapping(0, alloc.get_starting_address());
 
-  HammerSuite suite(alloc);
   printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
   printf("initialized location parameter to %hu.\n", args.locations);
   printf("initialized threads parameter to %hu\n", args.threads);
+  HammerSuite *suite;
+  if(args.seed > 0) {
+    printf("initialized seed to %lu\n", args.seed);
+    suite = new HammerSuite(alloc, args.seed);
+  } else {
+    suite = new HammerSuite(alloc);
+  }
+  
   if(args.test_effective_patterns) {
     printf("will test effective patterns in multiple fuzzing runs after we are finished.\n");
   }
   printf("starting hammering run!\n");
-  std::vector<FuzzReport> reports = suite.auto_fuzz(args);
+  std::vector<FuzzReport> reports = suite->auto_fuzz(args);
   size_t full_check = alloc.check_memory(alloc.get_starting_address(), alloc.get_starting_address() + alloc.get_allocation_size());
   printf("full check found %lu flips.\n", full_check);
   Logger::close();
+  delete suite;
 }
