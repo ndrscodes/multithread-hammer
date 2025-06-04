@@ -126,8 +126,8 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       );
 
     } else {
+      std::barrier barrier(patterns.size());
       for(int i = 0; i < exported_patterns.size(); i++) {
-        std::barrier barrier(patterns.size());
         DRAMAddr first;
         auto pattern = exported_patterns[i];
         for(auto ptr : pattern) {
