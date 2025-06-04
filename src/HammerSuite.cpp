@@ -87,14 +87,13 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
     if(params.is_interleaved()) {
       std::vector<volatile char *> final_pattern;
       
-      size_t num_patterns = exported_patterns.size();
       int i = 0;
       int j = 0;
       bool added;
       do {
         added = false;
         for(auto& p : exported_patterns) {
-          if(j > p.size() - 1) {
+          if(j > p.size() - 2) {
             continue;
           }
           final_pattern.push_back(p[j]);
@@ -104,6 +103,8 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
         j += 2;
         final_pattern.push_back(nullptr);
       } while(added == true);
+
+
 
       std::vector<volatile char *> non_accessed_rows;
       for(auto& mapper : mappers) {
@@ -119,9 +120,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
         final_pattern, 
         non_accessed_rows, 
         jitter,
-        std::ref(params), 
-        std::ref(fake_barrier),
-        std::ref(timer), 
+        params, 
+        fake_barrier,
+        timer, 
         sync_each
       );
 
