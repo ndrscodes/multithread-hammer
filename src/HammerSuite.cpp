@@ -44,7 +44,6 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   std::vector<LocationReport> report;
   std::uniform_int_distribution shift_dist(2, 64);
   std::vector<PatternAddressMapper> mappers(patterns.size());
-  std::vector<std::vector<volatile char *>> exported_patterns;
   std::mt19937 rand(params.get_seed() == 0 ? std::random_device()() : params.get_seed());
   size_t thread_id = 0;
   RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
@@ -54,10 +53,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   for(int loc = 0; loc < locations; loc++) {
     bool sync_each = rand() % 2 == 0;
    
+    std::vector<std::vector<volatile char *>> exported_patterns;
     //this should be sufficient to determine the ref threshold.
     
-    size_t pattern_sum = 0;
-
     for(int i = 0; i < patterns.size(); i++) {
       printf("mapping pattern with %lu aggressors to addresses...\n", patterns[i].aggressors.size());
      
@@ -131,7 +129,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
     } else {
       for(int i = 0; i < exported_patterns.size(); i++) {
         DRAMAddr first;
-        auto& pattern = exported_patterns[i];
+        auto pattern = exported_patterns[i];
         for(auto ptr : pattern) {
           if(ptr == nullptr) {
             continue;
