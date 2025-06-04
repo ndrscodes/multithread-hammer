@@ -40,7 +40,7 @@ private:
 public:
   HammerSuite(Memory &memory);
   HammerSuite(Memory &memory, uint64_t seed);
-  FuzzReport fuzz(size_t locations, size_t patterns);
+  FuzzReport fuzz(size_t locations, size_t patterns, bool interleaved);
   std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations);
   std::vector<FuzzReport> auto_fuzz(Args args);
 };

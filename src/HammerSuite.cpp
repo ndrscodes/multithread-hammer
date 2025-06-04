@@ -191,8 +191,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   return report;
 }
 
-FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns) {
+FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns, bool interleaved) {
   FuzzingParameterSet parameters(engine());
+  parameters.set_interleaved(interleaved);
   parameters.randomize_parameters();
   std::vector<HammeringPattern> fuzz_patterns(patterns);
 
@@ -286,7 +287,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {
   auto start = std::chrono::steady_clock::now();
   auto max_duration = std::chrono::seconds(args.runtime_limit);
   while(std::chrono::steady_clock::now() - start < max_duration) {
-    reports.push_back(fuzz(args.threads, args.locations));
+    reports.push_back(fuzz(args.locations, args.threads));
     printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
   }
 
