@@ -28,6 +28,8 @@ Args parse_args(int argc, char* argv[]) {
     } else if((strcmp("-s", argv[i]) == 0 || strcmp("--seed", argv[i]) == 0) && i + 1 < argc) {
       args.seed = atoi(argv[i + 1]);
       i++;
+    } else if(strcmp("-i", argv[i]) == 0 || strcmp("--interleaved", argv[i]) == 0) {
+      args.interleaved = true;
     }
   }
 
@@ -54,6 +56,9 @@ int main(int argc, char* argv[]) {
   printf("initialized location parameter to %hu.\n", args.locations);
   printf("initialized threads parameter to %hu\n", args.threads);
   HammerSuite *suite;
+  if(args.interleaved) {
+    printf("running in interleaved mode, just a single thread will be used.\n");
+  }
   if(args.seed > 0) {
     printf("initialized seed to %lu\n", args.seed);
     suite = new HammerSuite(alloc, args.seed);

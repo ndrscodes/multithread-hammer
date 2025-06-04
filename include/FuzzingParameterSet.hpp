@@ -67,6 +67,8 @@ class FuzzingParameterSet {
 
   float_t bank_change_percentage = 0.;
 
+  bool interleave = false;
+
  public:
   FuzzingParameterSet();
   FuzzingParameterSet(uint64_t seed);
@@ -146,6 +148,10 @@ class FuzzingParameterSet {
   int get_bank_change_percentage();
   
   void set_bank_change_percentage(float_t percentage);
+
+  bool is_interleaved();
+
+  void set_interleaved(bool interleaved);
 };
 
 #endif //BLACKSMITH_INCLUDE_FUZZER_FUZZINGPARAMETERSET_HPP_

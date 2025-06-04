@@ -325,3 +325,11 @@ void FuzzingParameterSet::set_seed(uint64_t seed) {
 uint64_t FuzzingParameterSet::get_seed() {
   return FuzzingParameterSet::seed;
 }
+
+bool FuzzingParameterSet::is_interleaved() {
+  return FuzzingParameterSet::interleave;
+}
+
+void FuzzingParameterSet::set_interleaved(bool interleaved) {
+  FuzzingParameterSet::interleave = interleaved;
+}

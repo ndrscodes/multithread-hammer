@@ -4,6 +4,7 @@
 #include <map>
 #include <random>
 #include <vector>
+#include "CodeJitter.hpp"
 #include "FuzzReport.hpp"
 #include "FuzzingParameterSet.hpp"
 #include "HammeringPattern.hpp"
@@ -18,13 +19,21 @@ struct Args {
   uint16_t threads = 1;
   bool test_effective_patterns = false;
   uint64_t seed = 0;
+  bool interleaved = false;
 };
 
 class HammerSuite {
 private:
   size_t current_pattern_id;
   std::map<size_t, HammeringPattern> patterns;
-  void hammer_fn(size_t id, std::vector<volatile char *> pattern, PatternAddressMapper &mapper, FuzzingParameterSet &params, std::barrier<> &start_barrier, RefreshTimer &timer, bool sync_each_ref);
+  void hammer_fn(size_t id, 
+                 std::vector<volatile char *> pattern, 
+                 std::vector<volatile char *> non_accessed_rows, 
+                 CodeJitter &jitter,
+                 FuzzingParameterSet &params, 
+                 std::barrier<> &start_barrier, 
+                 RefreshTimer &timer, 
+                 bool sync_each_ref);
   void check_effective_patterns(std::vector<FuzzReport> &patterns);
   Memory &memory;
   std::mt19937 engine;
