@@ -287,7 +287,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {
   auto start = std::chrono::steady_clock::now();
   auto max_duration = std::chrono::seconds(args.runtime_limit);
   while(std::chrono::steady_clock::now() - start < max_duration) {
-    reports.push_back(fuzz(args.locations, args.threads));
+    reports.push_back(fuzz(args.locations, args.threads, args.interleaved));
     printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
   }
 
