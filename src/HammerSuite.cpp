@@ -40,7 +40,6 @@ HammerSuite::HammerSuite(Memory &memory, uint64_t seed) : memory(memory) {
 std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
   
   std::vector<std::thread> threads(patterns.size());
-  std::barrier barrier(patterns.size());
   std::vector<LocationReport> report;
   std::uniform_int_distribution shift_dist(2, 64);
   std::vector<PatternAddressMapper> mappers(patterns.size());
@@ -128,6 +127,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
 
     } else {
       for(int i = 0; i < exported_patterns.size(); i++) {
+        std::barrier barrier(patterns.size());
         DRAMAddr first;
         auto pattern = exported_patterns[i];
         for(auto ptr : pattern) {
