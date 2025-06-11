@@ -39,6 +39,10 @@ void Memory::allocate_memory(size_t mem_size) {
   initialize(DATA_PATTERN::RANDOM);
 }
 
+void Memory::set_seed(uint64_t seed) {
+  Memory::seed = seed;
+}
+
 void Memory::initialize(DATA_PATTERN data_pattern) {
   Logger::log_info("Initializing memory with pseudorandom sequence.");
   if(seed > 0) {

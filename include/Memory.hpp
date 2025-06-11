@@ -60,6 +60,8 @@ class Memory {
   [[nodiscard]] size_t get_allocation_size() const { return size; }
 
   std::string get_flipped_rows_text_repr();
+
+  void set_seed(uint64_t seed);
 };
 
 #endif //BLACKSMITH_SRC_MEMORY_H_
