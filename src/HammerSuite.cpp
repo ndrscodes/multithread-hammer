@@ -79,7 +79,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       }
       std::vector<volatile char *> pattern = mappers[i].export_pattern(
         patterns[i], 
-        SCHEDULING_POLICY::DEFAULT);
+        SCHEDULING_POLICY::NONE);
 
       exported_patterns.push_back(pattern);
     }
@@ -104,7 +104,9 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
           if(i >= p.size()) {
             continue;
           }
-          final_pattern.push_back(p[i]);
+          if(p[i] != nullptr) {
+            final_pattern.push_back(p[i]);
+          }
           added = true;
         }
         
