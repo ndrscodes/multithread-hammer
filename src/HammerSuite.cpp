@@ -79,7 +79,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       }
       std::vector<volatile char *> pattern = mappers[i].export_pattern(
         patterns[i], 
-        params.is_interleaved() ? SCHEDULING_POLICY::NONE : SCHEDULING_POLICY::DEFAULT);
+        SCHEDULING_POLICY::DEFAULT);
 
       exported_patterns.push_back(pattern);
     }
@@ -87,21 +87,31 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
     if(params.is_interleaved()) {
       std::vector<volatile char *> final_pattern;
       
-      int i = 0;
-      int j = 0;
+      std::set<size_t> tuple_start_indices;
+      
+      for(auto& pattern : patterns) {
+        for(auto index : pattern.get_tuple_start_indices()) {
+          tuple_start_indices.insert(index);
+        }
+      }
+
+      size_t i = 0;
       bool added;
       do {
         added = false;
         for(auto& p : exported_patterns) {
-          if(j > p.size() - 2) {
+          if(i >= p.size()) {
             continue;
           }
-          final_pattern.push_back(p[j]);
-          final_pattern.push_back(p[j + 1]);
+          final_pattern.push_back(p[i]);
           added = true;
         }
-        j += 2;
-        final_pattern.push_back(nullptr);
+        
+        if(tuple_start_indices.contains(i)) {
+          final_pattern.push_back(nullptr);
+        }
+        
+        i++;
       } while(added == true);
 
 
