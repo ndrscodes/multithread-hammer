@@ -32,6 +32,8 @@ class Memory {
   // whether this memory allocation is backed up by a superage
   const bool superpage;
 
+  uint64_t seed;
+
   size_t check_memory_internal(PatternAddressMapper &mapping, const volatile char *start,
                                const volatile char *end, bool reproducibility_mode, bool verbose);
 
@@ -41,6 +43,7 @@ class Memory {
   std::vector<BitFlip> flipped_bits;
 
   explicit Memory(bool use_superpage);
+  explicit Memory(bool use_superpage, uint64_t seed);
 
   ~Memory();
 

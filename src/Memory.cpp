@@ -1,6 +1,7 @@
 #include "Memory.hpp"
 
 #include <cassert>
+#include <cstdint>
 #include <sys/mman.h>
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
@@ -40,6 +41,9 @@ void Memory::allocate_memory(size_t mem_size) {
 
 void Memory::initialize(DATA_PATTERN data_pattern) {
   Logger::log_info("Initializing memory with pseudorandom sequence.");
+  if(seed > 0) {
+    srand(seed);
+  }
 
   // for each page in the address space [start, end]
   for (uint64_t cur_page = 0; cur_page < size; cur_page += getpagesize()) {
@@ -196,7 +200,10 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
   return found_bitflips;
 }
 
-Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
+Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage), seed(0) {
+}
+
+Memory::Memory(bool use_superpage, uint64_t seed) : size(0), superpage(use_superpage), seed(seed) {
 }
 
 Memory::~Memory() {

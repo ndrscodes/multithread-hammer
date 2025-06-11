@@ -47,6 +47,9 @@ int main(int argc, char* argv[]) {
   Args args = parse_args(argc, argv);
 
   Memory alloc(true);
+  if(args.seed > 0) {
+    alloc = Memory(true, args.seed);
+  }
   printf("creating allocation...\n");
   alloc.allocate_memory(DRAMConfig::get().memory_size());
   printf("allocated %lu bytes of memory.\n", alloc.get_allocation_size());
