@@ -96,6 +96,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       }
 
       size_t i = 0;
+      bool fenced = false;
       bool added;
       do {
         added = false;
@@ -107,8 +108,11 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
           added = true;
         }
         
-        if(tuple_start_indices.contains(i)) {
+        if(tuple_start_indices.contains(i) && !fenced) {
           final_pattern.push_back(nullptr);
+          fenced = true;
+        } else {
+          fenced = false;
         }
         
         i++;
