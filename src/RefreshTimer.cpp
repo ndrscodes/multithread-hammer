@@ -39,7 +39,7 @@ std::vector<measurement> RefreshTimer::get_measurements(size_t n) {
 }
 
 uint64_t RefreshTimer::get_refresh_threshold() {
-  return refresh_threshold;
+  return refresh_threshold - 100;
 }
 
 uint64_t RefreshTimer::get_cycles_per_refresh() {
