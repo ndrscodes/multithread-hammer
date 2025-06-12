@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <emmintrin.h>
+#include <pthread.h>
 #include <random>
 #include <thread>
 #include <vector>
@@ -344,7 +345,11 @@ void HammerSuite::hammer_fn(size_t id,
     *non_accessed_rows[i % (non_accessed_rows.size() - 1)];
   }
 
-  _mm_mfence();
+  auto self = pthread_self();
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(id % 16, &cpuset);
+  int rc = pthread_setaffinity_np(self, sizeof(cpu_set_t), &cpuset); 
 
   start_barrier.arrive_and_wait();
   printf("thread %lu is starting a hammering run for %lu addresses.\n", id, pattern.size());

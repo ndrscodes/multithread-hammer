@@ -1,0 +1,3 @@
+- interleave simple pattern instead of two complex patterns
+- cpu pinning
+- fencing strategies
