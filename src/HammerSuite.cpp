@@ -29,6 +29,7 @@
 #define SYNC_TO_REF 1
 
 size_t ACTIVATIONS = 6000000;
+int start_thread = 0;
 
 HammerSuite::HammerSuite(Memory &memory) : memory(memory) {
   engine = std::mt19937(std::random_device()());
@@ -39,13 +40,13 @@ HammerSuite::HammerSuite(Memory &memory, uint64_t seed) : memory(memory) {
 }
 
 std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
-  
   std::vector<std::thread> threads(patterns.size());
   std::vector<LocationReport> report;
   std::uniform_int_distribution shift_dist(2, 64);
   std::vector<PatternAddressMapper> mappers(patterns.size());
   std::mt19937 rand(params.get_seed() == 0 ? std::random_device()() : params.get_seed());
-  size_t thread_id = 0;
+  size_t thread_id = start_thread++;
+  start_thread %= 16;
   RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
   //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
   DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
