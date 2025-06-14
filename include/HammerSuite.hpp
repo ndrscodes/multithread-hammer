@@ -32,8 +32,7 @@ private:
                  CodeJitter &jitter,
                  FuzzingParameterSet &params, 
                  std::barrier<> &start_barrier, 
-                 RefreshTimer &timer, 
-                 bool sync_each_ref);
+                 RefreshTimer &timer);
   void check_effective_patterns(std::vector<FuzzReport> &patterns);
   Memory &memory;
   std::mt19937 engine;

@@ -29,7 +29,7 @@
 #define SYNC_TO_REF 1
 
 size_t ACTIVATIONS = 6000000;
-int start_thread = 0;
+int start_thread = 6;
 
 HammerSuite::HammerSuite(Memory &memory) : memory(memory) {
   engine = std::mt19937(std::random_device()());
@@ -45,15 +45,12 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   std::uniform_int_distribution shift_dist(2, 64);
   std::vector<PatternAddressMapper> mappers(patterns.size());
   std::mt19937 rand(params.get_seed() == 0 ? std::random_device()() : params.get_seed());
-  size_t thread_id = start_thread++;
-  start_thread %= 16;
+  size_t thread_id = start_thread;
   RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
   //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
   DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
 
   for(int loc = 0; loc < locations; loc++) {
-    bool sync_each = rand() % 2 == 0;
-   
     std::vector<std::vector<volatile char *>> exported_patterns;
     //this should be sufficient to determine the ref threshold.
     
@@ -90,39 +87,23 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       std::vector<volatile char *> final_pattern;
       
       std::set<size_t> tuple_start_indices;
-      
-      for(auto& pattern : patterns) {
-        for(auto index : pattern.get_tuple_start_indices()) {
-          tuple_start_indices.insert(index);
+      for(auto idx : patterns[0].get_tuple_start_indices()) {
+        tuple_start_indices.insert(idx);
+      }      
+
+      std::uniform_int_distribution tuple_dist(0, (int)exported_patterns.size() - 1);
+
+      for(int i = 0; i < exported_patterns[0].size(); i++) {
+        final_pattern.push_back(exported_patterns[0][i]);
+        if(tuple_start_indices.contains(i)) {
+          final_pattern.push_back(nullptr);
+        }
+        if(i % 3 == 0 && exported_patterns.size() > 1) {
+          auto pattern = exported_patterns[tuple_dist(engine) + 1];
+          final_pattern.push_back(pattern[1]);
+          final_pattern.push_back(pattern[2]);
         }
       }
-
-      size_t i = 0;
-      bool fenced = false;
-      bool added;
-      do {
-        added = false;
-        for(auto& p : exported_patterns) {
-          if(i >= p.size()) {
-            continue;
-          }
-          if(p[i] != nullptr) {
-            final_pattern.push_back(p[i]);
-          }
-          added = true;
-        }
-        
-        if(tuple_start_indices.contains(i) && !fenced) {
-          final_pattern.push_back(nullptr);
-          fenced = true;
-        } else {
-          fenced = false;
-        }
-        
-        i++;
-      } while(added == true);
-
-
 
       std::vector<volatile char *> non_accessed_rows;
       for(auto& mapper : mappers) {
@@ -140,8 +121,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
         jitter,
         params, 
         fake_barrier,
-        timer, 
-        sync_each
+        timer 
       );
 
     } else {
@@ -170,8 +150,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
           std::ref(mappers[i].get_code_jitter()),
           std::ref(params),
           std::ref(barrier), 
-          std::ref(timer),
-          sync_each
+          std::ref(timer)
         );
       }
     
@@ -327,8 +306,7 @@ void HammerSuite::hammer_fn(size_t id,
                             CodeJitter &jitter,
                             FuzzingParameterSet &params,
                             std::barrier<> &start_barrier, 
-                            RefreshTimer &timer, 
-                            bool sync_each_ref) {
+                            RefreshTimer &timer) {
 #define USE_ZEN_JITTER 1
 
 #if USE_ZEN_JITTER
