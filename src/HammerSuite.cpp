@@ -118,7 +118,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       CodeJitter jitter;
 
       hammer_fn(
-        0, 
+        thread_id, 
         final_pattern, 
         non_accessed_rows, 
         jitter,
