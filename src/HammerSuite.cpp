@@ -94,12 +94,15 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
       std::uniform_int_distribution tuple_dist(0, (int)exported_patterns.size() - 1);
 
       for(int i = 0; i < exported_patterns[0].size(); i++) {
-        final_pattern.push_back(exported_patterns[0][i]);
+        auto ptr = exported_patterns[0][i];
+        if(ptr != nullptr) {
+          final_pattern.push_back(ptr);
+        }
         if(tuple_start_indices.contains(i)) {
           final_pattern.push_back(nullptr);
         }
         if(i % 3 == 0 && exported_patterns.size() > 1) {
-          auto pattern = exported_patterns[tuple_dist(engine) + 1];
+          auto pattern = exported_patterns[tuple_dist(engine)];
           final_pattern.push_back(pattern[1]);
           final_pattern.push_back(pattern[2]);
         }
