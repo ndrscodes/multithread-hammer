@@ -90,7 +90,8 @@ static void check_cpu_for_microarchitecture(Microarchitecture uarch) {
     case Microarchitecture::INTEL_COMET_LAKE:
       supported_cpus = {
         // Comet Lake
-        "i7-10700"
+        "i7-10700",
+        "i9-10900K"
       };
       break;
     default:
