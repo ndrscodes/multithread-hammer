@@ -1197,10 +1197,10 @@ void DRAMConfig::select_config(Microarchitecture uarch, int ranks, int bank_grou
     selected_config->bank_shift = 26;
     selected_config->bank_mask = 0b1111;
     // 13 row bits (inside 1 GB)
-    selected_config->row_shift = 0;
+    selected_config->row_shift = 13;
     selected_config->row_mask = 0b1111111111111;
     // 13 column bits
-    selected_config->column_shift = 13;
+    selected_config->column_shift = 0;
     selected_config->column_mask = 0b1111111111111;
 
     // 29 bits (512 MB)
