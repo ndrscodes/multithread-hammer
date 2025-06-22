@@ -20,13 +20,14 @@
 #include "FuzzingParameterSet.hpp"
 #include "HammeringPattern.hpp"
 #include "LocationReport.hpp"
+#include "MappedPattern.hpp"
 #include "Memory.hpp"
 #include "PatternAddressMapper.hpp"
 #include "PatternBuilder.hpp"
 #include "RandomPatternBuilder.hpp"
 #include "RefreshTimer.hpp"
 #include "Jitter.hpp"
-#define SYNC_TO_REF 1
+#define SYNC_TO_REF 0
 
 size_t ACTIVATIONS = 6000000;
 int start_thread = 6;
@@ -39,157 +40,164 @@ HammerSuite::HammerSuite(Memory &memory, uint64_t seed) : memory(memory) {
   engine = std::mt19937(seed);
 }
 
-std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
+LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params) {
   std::vector<std::thread> threads(patterns.size());
   std::vector<LocationReport> report;
   std::uniform_int_distribution shift_dist(2, 64);
-  std::vector<PatternAddressMapper> mappers(patterns.size());
   std::mt19937 rand(params.get_seed() == 0 ? std::random_device()() : params.get_seed());
   size_t thread_id = start_thread;
   RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
   //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
   DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
 
-  for(int loc = 0; loc < locations; loc++) {
-    std::vector<std::vector<volatile char *>> exported_patterns;
-    //this should be sufficient to determine the ref threshold.
-    
-    for(int i = 0; i < patterns.size(); i++) {
-      printf("mapping pattern with %lu aggressors to addresses...\n", patterns[i].aggressors.size());
-     
-      //randomize as described in FuzzyHammerer in ZenHammer.
-      std::shuffle(patterns[i].agg_access_patterns.begin(), patterns[i].agg_access_patterns.end(), rand);
+  std::vector<std::vector<volatile char *>> exported_patterns;
+  for(auto pattern : patterns) {
+    exported_patterns.push_back(pattern.mapper.export_pattern(pattern.pattern, SCHEDULING_POLICY::DEFAULT));
+  } 
 
-      if(loc > 0) {
-        //we have already filled the mappers and simply need to shift the mapping...
-        //an empty set means we want to shift all of them. I don't know why. Maybe provide an overload instead?
-        mappers[i].shift_mapping(shift_dist(rand), {});
-      } else {
-        //strange, but we will do the mapping here as PatternAddressMapper uses a static bank counter.
-        //this could be a problem in multithreaded scenarios.
-        //TODO: use an atomic bank counter instead.
-        PatternAddressMapper mapper;
-        if(params.get_seed() > 0) {
-          mapper = PatternAddressMapper(params.get_seed());
-        }
-        mappers[i] = mapper;
-        mappers[i].randomize_addresses(params, patterns[i].agg_access_patterns, true);
-        printf("this was the first run for mapper %d. Randomization completed.\n", i);
+  if(params.is_interleaved()) {
+    std::vector<volatile char *> final_pattern;
+
+    DRAMAddr first_addr((void *)exported_patterns[0][1]);
+    printf("starting interleaved pattern on main bank %lu with starting address %s.\n",
+           first_addr.actual_bank(), 
+           first_addr.to_string().c_str());
+
+    std::set<size_t> tuple_start_indices;
+    for(auto idx : patterns[0].pattern.get_tuple_start_indices()) {
+      tuple_start_indices.insert(idx);
+    }      
+
+    std::uniform_int_distribution tuple_dist(0, (int)exported_patterns.size() - 1);
+
+    for(int i = 0; i < exported_patterns[0].size(); i++) {
+      auto ptr = exported_patterns[0][i];
+      if(ptr != nullptr) {
+        final_pattern.push_back(ptr);
       }
-      std::vector<volatile char *> pattern = mappers[i].export_pattern(
-        patterns[i], 
-        params.is_interleaved() ? SCHEDULING_POLICY::NONE : SCHEDULING_POLICY::DEFAULT);
-
-      exported_patterns.push_back(pattern);
+      if(tuple_start_indices.contains(i)) {
+        final_pattern.push_back(nullptr);
+      }
+      if(i % 3 == 0 && exported_patterns.size() > 1) {
+        auto pattern = exported_patterns[tuple_dist(engine)];
+        final_pattern.push_back(pattern[1]);
+        final_pattern.push_back(pattern[2]);
+      }
     }
 
-    if(params.is_interleaved()) {
-      std::vector<volatile char *> final_pattern;
-      
-      std::set<size_t> tuple_start_indices;
-      for(auto idx : patterns[0].get_tuple_start_indices()) {
-        tuple_start_indices.insert(idx);
-      }      
+    std::vector<volatile char *> non_accessed_rows;
+    for(auto& pattern : patterns) {
+      auto rows = pattern.mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
+      non_accessed_rows.insert(non_accessed_rows.end(), rows.begin(), rows.end());
+    }
 
-      std::uniform_int_distribution tuple_dist(0, (int)exported_patterns.size() - 1);
+    std::barrier fake_barrier(1);
+    CodeJitter jitter;
 
-      for(int i = 0; i < exported_patterns[0].size(); i++) {
-        auto ptr = exported_patterns[0][i];
-        if(ptr != nullptr) {
-          final_pattern.push_back(ptr);
-        }
-        if(tuple_start_indices.contains(i)) {
-          final_pattern.push_back(nullptr);
-        }
-        if(i % 3 == 0 && exported_patterns.size() > 1) {
-          auto pattern = exported_patterns[tuple_dist(engine)];
-          final_pattern.push_back(pattern[1]);
-          final_pattern.push_back(pattern[2]);
-        }
-      }
+    hammer_fn(
+      thread_id, 
+      final_pattern, 
+      non_accessed_rows, 
+      jitter,
+      params, 
+      fake_barrier,
+      timer 
+    );
 
-      std::vector<volatile char *> non_accessed_rows;
-      for(auto& mapper : mappers) {
-        auto rows = mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
-        non_accessed_rows.insert(non_accessed_rows.end(), rows.begin(), rows.end());
-      }
-
-      std::barrier fake_barrier(1);
-      CodeJitter jitter;
-
-      hammer_fn(
-        thread_id, 
-        final_pattern, 
-        non_accessed_rows, 
-        jitter,
-        params, 
-        fake_barrier,
-        timer 
+  } else {
+    std::barrier barrier(patterns.size());
+    for(int i = 0; i < exported_patterns.size(); i++) {
+      DRAMAddr first_addr((void *)exported_patterns[i][1]);
+      printf("starting thread on bank %lu with first address being %s.\n", 
+             first_addr.actual_bank(),
+             first_addr.to_string().c_str());
+      threads[i] = std::thread(
+        &HammerSuite::hammer_fn, 
+        this, 
+        thread_id++, 
+        exported_patterns[i],
+        patterns[i].mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows()),
+        std::ref(patterns[i].mapper.get_code_jitter()),
+        std::ref(params),
+        std::ref(barrier), 
+        std::ref(timer)
       );
-
-    } else {
-      std::barrier barrier(patterns.size());
-      for(int i = 0; i < exported_patterns.size(); i++) {
-        DRAMAddr first;
-        auto pattern = exported_patterns[i];
-        for(auto ptr : pattern) {
-          if(ptr == nullptr) {
-            continue;
-          }
-          first = DRAMAddr((void *)ptr);
-        }
-
-        printf("...done! Thread %lu will hammer bank %lu (first address in pattern was %s).\n", thread_id, first.actual_bank(), first.to_string().c_str());
-
-        printf("starting thread for pattern with %lu aggressors on location %d...\n",
-               patterns[i].aggressors.size(), loc);
-
-        threads[i] = std::thread(
-          &HammerSuite::hammer_fn, 
-          this, 
-          thread_id++, 
-          exported_patterns[i],
-          mappers[i].get_random_nonaccessed_rows(DRAMConfig::get().rows()),
-          std::ref(mappers[i].get_code_jitter()),
-          std::ref(params),
-          std::ref(barrier), 
-          std::ref(timer)
-        );
-      }
-    
-      for(auto& thread : threads) {
-        thread.join();
-      }
     }
-
-    LocationReport locationReport;
-    int total_flips = 0;
-    for(int i = 0; i < mappers.size(); i++) {
-      //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
-      size_t flips = memory.check_memory(mappers[i], true, true);
-      PatternReport report {
-        .flips = flips
-      };
-      if(report.flips) {
-        report.pattern = patterns[i]; //if the pattern was effective, we are storing it to fuzz it later.
-      }
-      total_flips += report.flips;
-      if(report.flips) {
-        printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.\n", 
-               report.flips, 
-               i, 
-               DRAMAddr((void *)*mappers[i].get_victim_rows().begin()).actual_bank());
-      }
-      locationReport.add_report(report);
+  
+    for(auto& thread : threads) {
+      thread.join();
     }
-
-    printf("completed hammering run for location %d. Found %d flips in total on this location combination.\n", loc, total_flips);
-    printf("\n###########################################################################################\n\n");
-
-    report.push_back(locationReport);
   }
 
-  return report;
+  LocationReport locationReport;
+  int total_flips = 0;
+  for(int i = 0; i < patterns.size(); i++) {
+    //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
+    size_t flips = memory.check_memory(patterns[i].mapper, true, true);
+    PatternReport report {
+      .flips = flips
+    };
+    if(report.flips) {
+      report.pattern = patterns[i]; //if the pattern was effective, we are storing it to fuzz it later.
+    }
+    total_flips += report.flips;
+    if(report.flips) {
+      printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.\n", 
+             report.flips, 
+             i, 
+             DRAMAddr((void *)*patterns[i].mapper.get_victim_rows().begin()).actual_bank());
+    }
+    locationReport.add_report(report);
+  }
+
+  printf("\n###########################################################################################\n\n");
+
+  return locationReport;
+}
+
+std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
+  std::vector<LocationReport> location_reports(locations);
+  std::uniform_int_distribution row_shift_dist(1, 64);
+
+  if(locations == 0) {
+    printf("location parameter must be non-zero.\n");
+    exit(1);
+  }
+
+  location_reports[0] = fuzz_pattern(patterns, params);
+  if(--locations == 0) {
+    return location_reports;
+  }
+
+  for(int i = 0; i < locations; i++) {
+    for(int j = 0; j < patterns.size(); j++) {
+      patterns[j].mapper.shift_mapping(row_shift_dist(engine), {});
+    }
+    location_reports[i + 1] = fuzz_pattern(patterns, params);
+  }
+
+  return location_reports;
+}
+
+std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
+  std::vector<LocationReport> location_reports(locations);
+  std::vector<MappedPattern> mapped_patterns(patterns.size());
+  std::uniform_int_distribution row_shift_dist(1, 64);
+
+  if(locations == 0) {
+    printf("location parameter must be non-zero.\n");
+    exit(1);
+  }
+
+  for(int i = 0; i < mapped_patterns.size(); i++) {
+    mapped_patterns[i] = {
+      .pattern = patterns[i],
+      .mapper = PatternAddressMapper()
+    };
+    mapped_patterns[i].mapper.randomize_addresses(params, mapped_patterns[i].pattern.agg_access_patterns, true);
+  }
+
+  return fuzz_location(mapped_patterns, params, locations);
 }
 
 FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns, bool interleaved) {
@@ -249,7 +257,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
           continue;
         }
 
-        std::vector<HammeringPattern> patterns;
+        std::vector<MappedPattern> patterns;
         //check from 1 to 6 threads
         for(int i = 0; i < 8; i++) {
           patterns.push_back(pattern_report.pattern);
@@ -257,7 +265,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
           for(int j = 0; j < final_reports.size(); j++) {
             if(final_reports[j].sum_flips() > 0) {
               printf("[ANALYSIS] pattern %s produced %lu flips over %d threads on location %d!\n", 
-                     pattern_report.pattern.instance_id.c_str(),
+                     pattern_report.pattern.pattern.instance_id.c_str(),
                      final_reports[j].sum_flips(),
                      i,
                      j);
@@ -266,7 +274,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
                 printf("[THREAD-ANALYSIS] thread %d produced %lu flips on pattern %s at location %d!\n",
                        k, 
                        loc_reports[k].flips,
-                       loc_reports[k].pattern.instance_id.c_str(),
+                       loc_reports[k].pattern.pattern.instance_id.c_str(),
                        j);
                 thread_flips[k] += loc_reports[k].flips;
               }

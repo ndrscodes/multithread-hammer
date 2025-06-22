@@ -1,9 +1,9 @@
 #pragma once
+#include "MappedPattern.hpp"
 #include <vector>
-#include "HammeringPattern.hpp"
 
 typedef struct {
-  HammeringPattern pattern;
+  MappedPattern pattern;
   size_t flips;
 } PatternReport;
 
