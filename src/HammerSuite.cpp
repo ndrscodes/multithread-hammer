@@ -59,7 +59,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
     std::vector<volatile char *> final_pattern;
 
     DRAMAddr first_addr(0, 0, 0);
-    for(auto ptr : exported_patterns[i]) {
+    for(auto ptr : exported_patterns[0]) {
       if(ptr == nullptr) {
         continue;
       }
@@ -86,8 +86,14 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
       }
       if(i % 3 == 0 && exported_patterns.size() > 1) {
         auto pattern = exported_patterns[tuple_dist(engine)];
-        final_pattern.push_back(pattern[1]);
-        final_pattern.push_back(pattern[2]);
+        int count = 0;
+        int idx = 0;
+        for(int idx = 0; idx < pattern.size() && count < 2; idx++) {
+          if(pattern[idx] == nullptr) {
+            continue;
+          }
+          final_pattern.push_back(pattern[idx++]);
+        }
       }
     }
 
