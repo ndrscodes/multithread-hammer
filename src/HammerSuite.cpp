@@ -58,7 +58,13 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
   if(params.is_interleaved()) {
     std::vector<volatile char *> final_pattern;
 
-    DRAMAddr first_addr((void *)exported_patterns[0][1]);
+    DRAMAddr first_addr(0, 0, 0);
+    for(auto ptr : exported_patterns[i]) {
+      if(ptr == nullptr) {
+        continue;
+      }
+      first_addr = DRAMAddr((void *)ptr);
+    }
     printf("starting interleaved pattern on main bank %lu with starting address %s.\n",
            first_addr.actual_bank(), 
            first_addr.to_string().c_str());
@@ -107,7 +113,13 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
   } else {
     std::barrier barrier(patterns.size());
     for(int i = 0; i < exported_patterns.size(); i++) {
-      DRAMAddr first_addr((void *)exported_patterns[i][1]);
+      DRAMAddr first_addr(0, 0, 0);
+      for(auto ptr : exported_patterns[i]) {
+        if(ptr == nullptr) {
+          continue;
+        }
+        first_addr = DRAMAddr((void *)ptr);
+      }
       printf("starting thread on bank %lu with first address being %s.\n", 
              first_addr.actual_bank(),
              first_addr.to_string().c_str());
