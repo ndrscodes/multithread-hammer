@@ -154,7 +154,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
   int total_flips = 0;
   for(int i = 0; i < patterns.size(); i++) {
     //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
-    size_t flips = memory.check_memory(patterns[i].mapper, false, true);
+    size_t flips = memory.check_memory(patterns[i].mapper, reproducibility_mode, true);
     if(!reproducibility_mode) {
       flips = 0;
       if(!patterns[i].mapper.bit_flips.empty()) {
@@ -429,7 +429,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
       double_t avg_banks = effective / (double_t)tests;
       char avg_banks_s[10];
       sprintf(avg_banks_s, "%.2f", avg_banks);
-      printf("%-10d %-10s", i + 1, avg_banks_s);
+      printf("%-10d %-10s\n", i + 1, avg_banks_s);
     }
   }
 
