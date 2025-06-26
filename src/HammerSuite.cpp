@@ -402,23 +402,24 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
 
     printf("we found bitflip information on at least one pattern. Running analysis...\n");
     for(auto& report : effective_reports) {
-      for(auto& loc : report.get_reports()) {
-        for(auto& pat : loc.get_reports()) {
+      auto loc_reports = report.get_reports();
+      for(int loc = 0; loc < loc_reports.size(); loc++) {
+        bool effective = false;
+        for(auto& pat : loc_reports[loc].get_reports()) {
           std::set<size_t> banks;
-          for(auto& flips : pat.pattern.mapper.bit_flips) {
-            for(auto& flip : flips) {
-              banks.insert(flip.address.actual_bank());
-              int z = flip.count_o2z_corruptions();
-              int o = flip.count_z2o_corruptions();
-              zero_to_one += o;
-              one_to_zero += z;
-              num_bitflips += o + z;
-            }
+          for(auto& flip : pat.pattern.mapper.bit_flips[loc]) {
+            banks.insert(flip.address.actual_bank());
+            int z = flip.count_o2z_corruptions();
+            int o = flip.count_z2o_corruptions();
+            zero_to_one += o;
+            one_to_zero += z;
+            num_bitflips += o + z;
+            effective = true;
           }
-          effective_banks_per_num_patterns[loc.get_reports().size() - 1] = banks.size();
-          if(banks.size() > 0) {
-            num_available_reports_per_num_patterns[loc.get_reports().size() - 1]++;
-          }
+          effective_banks_per_num_patterns[loc_reports[loc].get_reports().size() - 1] = banks.size();
+        }
+        if(effective) {
+          num_available_reports_per_num_patterns[loc_reports[loc].get_reports().size() - 1]++;
         }
       }
     }
