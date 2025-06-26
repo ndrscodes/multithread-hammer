@@ -416,7 +416,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
             num_bitflips += o + z;
             effective = true;
           }
-          effective_banks_per_num_patterns[loc_reports[loc].get_reports().size() - 1] = banks.size();
+          effective_banks_per_num_patterns[loc_reports[loc].get_reports().size() - 1] += banks.size();
         }
         if(effective) {
           num_available_reports_per_num_patterns[loc_reports[loc].get_reports().size() - 1]++;
