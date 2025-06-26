@@ -1,5 +1,4 @@
 #include "HammerSuite.hpp"
-#include <algorithm>
 #include <barrier>
 #include <cassert>
 #include <chrono>
@@ -28,13 +27,13 @@
 #include "Memory.hpp"
 #include "PatternAddressMapper.hpp"
 #include "PatternBuilder.hpp"
-#include "RandomPatternBuilder.hpp"
 #include "RefreshTimer.hpp"
 #include "Jitter.hpp"
 #define SYNC_TO_REF 0
 
 size_t ACTIVATIONS = 6000000;
 int start_thread = 6;
+const bool reproducibility_mode = false;
 
 HammerSuite::HammerSuite(Memory &memory) : memory(memory) {
   engine = std::mt19937(std::random_device()());
@@ -155,11 +154,19 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
   int total_flips = 0;
   for(int i = 0; i < patterns.size(); i++) {
     //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
-    size_t flips = memory.check_memory(patterns[i].mapper, true, true);
+    size_t flips = memory.check_memory(patterns[i].mapper, false, true);
+    if(!reproducibility_mode) {
+      flips = 0;
+      for(auto flip : patterns[i].mapper.bit_flips.back()) {
+        flips += flip.count_bit_corruptions();
+      }
+    }
+
     PatternReport report {
       .pattern = patterns[i],
       .flips = flips
     };
+
     total_flips += report.flips;
     if(report.flips) {
       printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.\n", 
@@ -167,6 +174,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
              i, 
              DRAMAddr((void *)*patterns[i].mapper.get_victim_rows().begin()).actual_bank());
     }
+
     locationReport.add_report(report);
   }
 
@@ -292,7 +300,7 @@ MappedPattern HammerSuite::build_mapped(FuzzingParameterSet &params, Args &args)
   return map_pattern(pattern, params, args);
 }
 
-void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args) {
+std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzReport> &patterns) {
   printf("\n##### BEGIN EFFECTIVE PATTERN ANALYSIS #####\n\n");
 
   std::vector<FuzzReport> effective_reports;
@@ -308,7 +316,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
 
   if(sum_flips == 0) {
     printf("we did not flip any bits. Since there are no effective patterns, we will not continue analyzing.\n");
-    return;
+    return effective_reports;
   }
 
   size_t thread_flips[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -319,7 +327,120 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
   std::map<size_t, size_t> bank_flip_counts;
 
   for(auto& report : effective_reports) {
+    std::vector<LocationReport> final_reports = report.get_reports();
+    int location = 0;
+    for(auto location_report : final_reports) {
+      location++;
+      //check from 1 to 6 threads
+      int threads = location_report.get_reports().size();
+      for(auto& final_report : final_reports) {
+        if(final_report.sum_flips() > 0) {
+          auto loc_reports = final_report.get_reports();
+          for(int k = 0; k < loc_reports.size(); k++) {
+            if(loc_reports[k].flips > 0) {
+              effective_pattern_counts[threads - 1]++;
+              thread_pattern_lengths[threads - 1] += loc_reports[k].pattern.mapper.aggressor_to_addr.size();
+              thread_aggressor_nums[threads - 1] += loc_reports[k].pattern.pattern.aggressors.size();
+              thread_flips[threads - 1] += loc_reports[k].flips;
+              
+              size_t bank_no = loc_reports[k].pattern.mapper.bank_no;
+              if(!bank_flip_counts.contains(bank_no)) {
+                bank_flip_counts[bank_no] = 0;
+              }
+              bank_flip_counts[bank_no] += loc_reports[k].flips;
+
+              if(!bank_effective_counts.contains(bank_no)) {
+                bank_effective_counts[bank_no] = 0;
+              }
+              bank_effective_counts[bank_no]++;
+            }
+
+            printf("[THREAD-ANALYSIS] thread %d produced %lu flips on pattern %s at location %d!\n",
+                   k, 
+                   loc_reports[k].flips,
+                   loc_reports[k].pattern.pattern.instance_id.c_str(),
+                   location);
+          }
+        }
+        printf("[ANALYSIS] hammering produced %lu flips over %d threads on location %d!\n", 
+               final_report.sum_flips(),
+               threads,
+               location);
+
+      }
+    }
+  }
+
+  printf("%-15s %-15s %-15s %-15s %-15s\n", "threads", "effective", "avg. length", "avg. aggs", "flips");
+
+  for(int i = 0; i < 8; i++) {
+    size_t effective = effective_pattern_counts[i];
+    double_t avg_length = (double_t)thread_aggressor_nums[i] / effective;
+    double_t avg_aggrs = (double_t)thread_pattern_lengths[i] / effective;
+    size_t flips = thread_flips[i];
+    char avg_length_str[10];    
+    char avg_aggr_str[10];
+    sprintf(avg_length_str, "%.2f", avg_length);
+    sprintf(avg_aggr_str, "%.2f", avg_aggrs);
+    printf("%-15d %-15lu %-15s %-15s %-15lu\n", i + 1, effective, avg_length_str, avg_aggr_str, flips);
+  }
+
+  printf("%-10s %-10s %-10s\n", "bank no.", "effective", "flips");
+  for(auto pair : bank_effective_counts) {
+    printf("%-10lu %-10lu %-10lu\n", pair.first, pair.second, bank_flip_counts[pair.first]);
+  }
+
+  if(!reproducibility_mode) {
+    int effective_banks_per_num_patterns[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    int num_available_reports_per_num_patterns[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    int zero_to_one = 0;
+    int one_to_zero = 0;
+    int num_bitflips = 0;
+
+    printf("we found bitflip information on at least one pattern. Running analysis...\n");
+    for(auto& report : effective_reports) {
+      for(auto& loc : report.get_reports()) {
+        for(auto& pat : loc.get_reports()) {
+          num_available_reports_per_num_patterns[loc.get_reports().size()]++;
+          std::set<size_t> banks;
+          for(auto& flips : pat.pattern.mapper.bit_flips) {
+            for(auto& flip : flips) {
+              banks.insert(flip.address.actual_bank());
+              int z = flip.count_o2z_corruptions();
+              int o = flip.count_z2o_corruptions();
+              zero_to_one += o;
+              one_to_zero += z;
+              num_bitflips += o + z;
+            }
+          }
+          effective_banks_per_num_patterns[loc.get_reports().size() - 1] = banks.size();
+        }
+      }
+    }
+    
+    printf("found %d bitflips of which %d (%f) were one-to-zero and %d (%f) were zero-to-one flips.\n",
+           num_bitflips, one_to_zero, one_to_zero / (double_t)num_bitflips, zero_to_one, zero_to_one / (double_t)num_bitflips);
+    printf("%-10s %-10s\n", "threads", "banks");
+    for(int i = 0; i < 8; i++) {
+      int effective = effective_banks_per_num_patterns[i];
+      int tests = num_available_reports_per_num_patterns[i];
+      double_t avg_banks = effective / (double_t)tests;
+      char avg_banks_s[10];
+      sprintf(avg_banks_s, "%.2f", avg_banks);
+      printf("%-10d %-10s", i + 1, avg_banks_s);
+    }
+  }
+
+  return effective_reports;
+}
+
+void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args) {
+  std::vector<FuzzReport> fuzz_reports;
+  std::vector<FuzzReport> effective_reports = filter_and_analyze_flips(patterns);
+
+  for(auto& report : effective_reports) {
     FuzzingParameterSet parameters = report.get_fuzzing_params();
+    FuzzReport fuzzing_run_report(parameters);
     for(auto location_report : report.get_reports()) {
       //check from 1 to 6 threads
       for(int threads = 1; threads <= 8; threads++) {
@@ -350,62 +471,14 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
         std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6);
         
         for(int j = 0; j < final_reports.size(); j++) {
-          if(final_reports[j].sum_flips() > 0) {
-            auto loc_reports = final_reports[j].get_reports();
-            for(int k = 0; k < loc_reports.size(); k++) {
-              if(loc_reports[k].flips > 0) {
-                effective_pattern_counts[threads - 1]++;
-                thread_pattern_lengths[threads - 1] += loc_reports[k].pattern.mapper.aggressor_to_addr.size();
-                thread_aggressor_nums[threads - 1] += loc_reports[k].pattern.pattern.aggressors.size();
-                thread_flips[k] += loc_reports[k].flips;
-                
-                size_t bank_no = loc_reports[k].pattern.mapper.bank_no;
-                if(!bank_flip_counts.contains(bank_no)) {
-                  bank_flip_counts[bank_no] = 0;
-                }
-                bank_flip_counts[bank_no] += loc_reports[k].flips;
-
-                if(!bank_effective_counts.contains(bank_no)) {
-                  bank_effective_counts[bank_no] = 0;
-                }
-                bank_effective_counts[bank_no++];
-              }
-              printf("[ANALYSIS] pattern %s produced %lu flips over %d threads on location %d!\n", 
-                     loc_reports[k].pattern.pattern.instance_id.c_str(),
-                     final_reports[j].sum_flips(),
-                     threads,
-                     j);
-
-              printf("[THREAD-ANALYSIS] thread %d produced %lu flips on pattern %s at location %d!\n",
-                     k, 
-                     loc_reports[k].flips,
-                     loc_reports[k].pattern.pattern.instance_id.c_str(),
-                     j);
-            }
-          }
+          fuzzing_run_report.add_report(final_reports[j]);
         }
       }
     }
+    fuzz_reports.push_back(fuzzing_run_report);
   }
 
-  printf("%-10s %-10s %-10s %-10s %-10s\n", "threads", "effective", "avg. length", "avg. aggs", "flips");
-
-  for(int i = 0; i < 8; i++) {
-    size_t effective = effective_pattern_counts[i];
-    double_t avg_length = (double_t)thread_aggressor_nums[i] / effective;
-    double_t avg_aggrs = (double_t)thread_pattern_lengths[i] / effective;
-    size_t flips = thread_flips[i];
-    char avg_length_str[10];    
-    char avg_aggr_str[10];
-    sprintf(avg_length_str, "%.2f", avg_length);
-    sprintf(avg_aggr_str, "%.2f", avg_aggrs);
-    printf("%-10d %-10lu %-10s %-10s %-10lu\n", i + 1, effective, avg_length_str, avg_aggr_str, flips);
-  }
-
-  printf("%-10s %-10s %-10s\n", "bank no.", "effective", "flips");
-  for(auto pair : bank_effective_counts) {
-    printf("%-10lu %-10lu %-10lu\n", pair.first, pair.second, bank_flip_counts[pair.first]);
-  }
+  filter_and_analyze_flips(fuzz_reports);
 }
 
 std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {

@@ -48,7 +48,7 @@ class Logger {
 
   static void log_data(const std::string &message, bool newline = true);
 
-  static void log_bitflip(volatile char *flipped_address, uint64_t row_no, unsigned char actual_value,
+  static void log_bitflip(volatile char *flipped_address, uint64_t bank_no, uint64_t row_no, unsigned char actual_value,
                           unsigned char expected_value, unsigned long timestamp, bool newline);
 
   static void log_debug(const std::string &message, bool newline = true);

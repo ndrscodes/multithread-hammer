@@ -100,11 +100,12 @@ void Logger::log_timestamp() {
   log_info(ss.str());
 }
 
-void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsigned char actual_value,
+void Logger::log_bitflip(volatile char *flipped_address, uint64_t bank_no, uint64_t row_no, unsigned char actual_value,
                          unsigned char expected_value, unsigned long timestamp, bool newline) {
   mutex.lock();
   instance.logfile << FC_GREEN
                    << "[!] Flip " << std::hex << (void *) flipped_address << ", "
+                   << std::dec << "bank " << bank_no << ", "
                    << std::dec << "row " << row_no << ", "
                    << "page offset: " << (uint64_t)flipped_address%(uint64_t)getpagesize() << ", "
                    << "byte offset: " << (uint64_t)flipped_address%(uint64_t)8 << ", "

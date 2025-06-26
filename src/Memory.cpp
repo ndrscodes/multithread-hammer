@@ -171,7 +171,7 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
           const auto flipped_addr_value = *(unsigned char *) flipped_address;
           const auto expected_value = ((unsigned char *) &expected_rand_value)[c];
           if (verbose) {
-            Logger::log_bitflip(flipped_address, flipped_addr_dram.row,
+            Logger::log_bitflip(flipped_address, flipped_addr_dram.actual_bank(), flipped_addr_dram.row,
                 expected_value, flipped_addr_value, (size_t) time(nullptr), true);
           }
           // store detailed information about the bit flip
