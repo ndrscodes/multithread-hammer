@@ -157,8 +157,10 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
     size_t flips = memory.check_memory(patterns[i].mapper, false, true);
     if(!reproducibility_mode) {
       flips = 0;
-      for(auto flip : patterns[i].mapper.bit_flips.back()) {
-        flips += flip.count_bit_corruptions();
+      if(!patterns[i].mapper.bit_flips.empty()) {
+        for(auto flip : patterns[i].mapper.bit_flips.back()) {
+          flips += flip.count_bit_corruptions();
+        }
       }
     }
 
