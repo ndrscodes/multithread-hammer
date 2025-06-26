@@ -331,32 +331,31 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
   for(auto& report : effective_reports) {
     std::vector<LocationReport> final_reports = report.get_reports();
     int location = 0;
-    for(auto location_report : final_reports) {
+    for(auto final_report: final_reports) {
       location++;
-      //check from 1 to 6 threads
-      int threads = location_report.get_reports().size();
-      for(auto& final_report : final_reports) {
-        if(final_report.sum_flips() > 0) {
-          auto loc_reports = final_report.get_reports();
-          for(int k = 0; k < loc_reports.size(); k++) {
-            if(loc_reports[k].flips > 0) {
-              effective_pattern_counts[threads - 1]++;
-              thread_pattern_lengths[threads - 1] += loc_reports[k].pattern.mapper.aggressor_to_addr.size();
-              thread_aggressor_nums[threads - 1] += loc_reports[k].pattern.pattern.aggressors.size();
-              thread_flips[threads - 1] += loc_reports[k].flips;
-              
-              size_t bank_no = loc_reports[k].pattern.mapper.bank_no;
-              if(!bank_flip_counts.contains(bank_no)) {
-                bank_flip_counts[bank_no] = 0;
-              }
-              bank_flip_counts[bank_no] += loc_reports[k].flips;
-
-              if(!bank_effective_counts.contains(bank_no)) {
-                bank_effective_counts[bank_no] = 0;
-              }
-              bank_effective_counts[bank_no]++;
+      int threads = final_report.get_reports().size();
+      if(final_report.sum_flips() > 0) {
+        auto loc_reports = final_report.get_reports();
+        for(int k = 0; k < loc_reports.size(); k++) {
+          if(loc_reports[k].flips > 0) {
+            effective_pattern_counts[threads - 1]++;
+            thread_pattern_lengths[threads - 1] += loc_reports[k].pattern.mapper.aggressor_to_addr.size();
+            thread_aggressor_nums[threads - 1] += loc_reports[k].pattern.pattern.aggressors.size();
+            thread_flips[threads - 1] += loc_reports[k].flips;
+            
+            size_t bank_no = loc_reports[k].pattern.mapper.bank_no;
+            if(!bank_flip_counts.contains(bank_no)) {
+              bank_flip_counts[bank_no] = 0;
             }
+            bank_flip_counts[bank_no] += loc_reports[k].flips;
 
+            if(!bank_effective_counts.contains(bank_no)) {
+              bank_effective_counts[bank_no] = 0;
+            }
+            bank_effective_counts[bank_no]++;
+          }
+
+          if(loc_reports[k].flips) {
             printf("[THREAD-ANALYSIS] thread %d produced %lu flips on pattern %s at location %d!\n",
                    k, 
                    loc_reports[k].flips,
@@ -364,11 +363,13 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
                    location);
           }
         }
-        printf("[ANALYSIS] hammering produced %lu flips over %d threads on location %d!\n", 
-               final_report.sum_flips(),
-               threads,
-               location);
-
+        auto sum = final_report.sum_flips();
+        if(sum) {
+          printf("[ANALYSIS] hammering produced %lu flips over %d threads on location %d!\n",
+                 sum,
+                 threads,
+                 location);
+        }
       }
     }
   }
