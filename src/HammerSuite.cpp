@@ -3,13 +3,16 @@
 #include <barrier>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <emmintrin.h>
 #include <pthread.h>
 #include <random>
+#include <set>
 #include <thread>
 #include <vector>
 #include <x86intrin.h>
@@ -153,11 +156,9 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
     //this MUST be done SINGLE-THREADED as multiple threads would constantly overwrite the seed of srand().
     size_t flips = memory.check_memory(patterns[i].mapper, true, true);
     PatternReport report {
+      .pattern = patterns[i],
       .flips = flips
     };
-    if(report.flips) {
-      report.pattern = patterns[i]; //if the pattern was effective, we are storing it to fuzz it later.
-    }
     total_flips += report.flips;
     if(report.flips) {
       printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.\n", 
@@ -166,6 +167,10 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
              DRAMAddr((void *)*patterns[i].mapper.get_victim_rows().begin()).actual_bank());
     }
     locationReport.add_report(report);
+  }
+
+  if(total_flips) {
+    printf("[SUCCESS] flipped %d bits on this pattern combination.\n", total_flips);
   }
 
   printf("\n###########################################################################################\n\n");
@@ -218,35 +223,75 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   return fuzz_location(mapped_patterns, params, locations);
 }
 
-FuzzReport HammerSuite::fuzz(size_t locations, size_t patterns, bool interleaved) {
+FuzzReport HammerSuite::fuzz(Args &args) {
   FuzzingParameterSet parameters(engine());
-  parameters.set_interleaved(interleaved);
+  parameters.set_interleaved(args.interleaved);
   parameters.randomize_parameters();
-  std::vector<HammeringPattern> fuzz_patterns(patterns);
+  std::vector<HammeringPattern> fuzz_patterns(args.threads);
 
   #define USE_RANDOM_PATTERN_GEN 0
-  for(auto& pattern : fuzz_patterns) {
+  for(size_t i = 0; i < args.threads; i++) {
 #if USE_RANDOM_PATTERN_GEN
     RandomPatternBuilder random_pattern_builder;
     pattern = random_pattern_builder.create_advanced_pattern(rand() % 2048);
 #else
-    PatternBuilder pattern_builder(pattern);
-    pattern_builder.generate_frequency_based_pattern(parameters);
+    fuzz_patterns[i] = generate_pattern(parameters, args);
 #endif
   }
 
   FuzzReport report(parameters);
-  printf("running %lu patterns over %lu locations...\n", patterns, locations);
-  for(auto location_report : fuzz_location(fuzz_patterns, parameters, locations)) {
+  printf("running %hu patterns over %hu locations...\n", args.threads, args.locations);
+  for(auto location_report : fuzz_location(fuzz_patterns, parameters, args.locations)) {
     report.add_report(location_report);
   }
-  printf("executed fuzzing run on %lu locations with %lu patterns, flipping %lu bits.\n", locations, patterns, report.get_reports().back().sum_flips());
+  printf("executed fuzzing run on %hu locations with %hu patterns, flipping %lu bits.\n", args.locations, args.threads, report.get_reports().back().sum_flips());
 
-  printf("managed to flip %lu bits over %lu locations.\n", report.sum_flips(), locations);
+  printf("managed to flip %lu bits over %hu locations.\n", report.sum_flips(), args.locations);
   return report;
 }
 
-void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
+HammeringPattern HammerSuite::generate_pattern(FuzzingParameterSet &params, Args &args) {
+  HammeringPattern pattern;
+  if(args.seed > 0) {
+    PatternBuilder builder(pattern, args.seed);
+    builder.generate_frequency_based_pattern(params);
+  } else {
+    PatternBuilder builder(pattern);
+    builder.generate_frequency_based_pattern(params);
+  }
+  return pattern;
+}
+
+MappedPattern HammerSuite::map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, Args &args) {
+  return map_pattern(-1, pattern, params, args);
+}
+
+MappedPattern HammerSuite::map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, Args &args) {
+  if(bank != -1) {
+    PatternAddressMapper::set_bank_counter(bank);
+  }
+  PatternAddressMapper mapper;
+  if(args.seed > 0) {
+    mapper = PatternAddressMapper(args.seed);
+  }
+  mapper.randomize_addresses(params, pattern.agg_access_patterns, true);
+  return {
+    .pattern = pattern,
+    .mapper = mapper
+  };
+}
+
+MappedPattern HammerSuite::build_mapped(int bank, FuzzingParameterSet &params, Args &args) {
+  HammeringPattern pattern = generate_pattern(params, args);
+  return map_pattern(bank, pattern, params, args);
+}
+
+MappedPattern HammerSuite::build_mapped(FuzzingParameterSet &params, Args &args) {
+  HammeringPattern pattern = generate_pattern(params, args);
+  return map_pattern(pattern, params, args);
+}
+
+void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args) {
   printf("\n##### BEGIN EFFECTIVE PATTERN ANALYSIS #####\n\n");
 
   std::vector<FuzzReport> effective_reports;
@@ -258,7 +303,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
       effective_reports.push_back(report);
     }  
   }
-  printf("we flipped %lu bits over %lu fuzzing runs.\n", sum_flips, patterns.size());
+  printf("we flipped %lu bits over %lu fuzzing runs. We found %lu runs with at least one flip.\n", sum_flips, patterns.size(), effective_reports.size());
 
   if(sum_flips == 0) {
     printf("we did not flip any bits. Since there are no effective patterns, we will not continue analyzing.\n");
@@ -266,45 +311,99 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns) {
   }
 
   size_t thread_flips[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  size_t thread_pattern_lengths[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  size_t thread_aggressor_nums[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  size_t effective_pattern_counts[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  std::map<size_t, size_t> bank_effective_counts;
+  std::map<size_t, size_t> bank_flip_counts;
 
   for(auto& report : effective_reports) {
     FuzzingParameterSet parameters = report.get_fuzzing_params();
     for(auto location_report : report.get_reports()) {
-      for(auto pattern_report : location_report.get_reports()) {
-        if(pattern_report.flips == 0) {
-          continue;
+      //check from 1 to 6 threads
+      for(int threads = 1; threads <= 8; threads++) {
+        std::vector<MappedPattern> patterns;
+        std::set<size_t> banks;
+        std::vector<PatternReport> pattern_reports = location_report.get_reports();
+        for(int i = 0; i < pattern_reports.size() && i < threads; i++) {
+          patterns.push_back(pattern_reports[i].pattern);
+          banks.insert(pattern_reports[i].pattern.mapper.bank_no);
         }
 
-        std::vector<MappedPattern> patterns;
-        //check from 1 to 6 threads
-        for(int i = 0; i < 8; i++) {
-          patterns.push_back(pattern_report.pattern);
-          std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6);
-          for(int j = 0; j < final_reports.size(); j++) {
-            if(final_reports[j].sum_flips() > 0) {
-              printf("[ANALYSIS] pattern %s produced %lu flips over %d threads on location %d!\n", 
-                     pattern_report.pattern.pattern.instance_id.c_str(),
-                     final_reports[j].sum_flips(),
-                     i,
-                     j);
-              auto loc_reports = final_reports[j].get_reports();
-              for(int k = 0; k < loc_reports.size(); k++) {
-                printf("[THREAD-ANALYSIS] thread %d produced %lu flips on pattern %s at location %d!\n",
-                       k, 
-                       loc_reports[k].flips,
-                       loc_reports[k].pattern.pattern.instance_id.c_str(),
-                       j);
+        while(patterns.size() < threads) {
+          printf("we are generating another pattern because we want to fuzz using %d threads, but we only had %lu patterns available in this report.\n", 
+                 threads,
+                 patterns.size());
+          
+          size_t first_bank = patterns[0].mapper.bank_no;
+          while(banks.contains(first_bank)) {
+            first_bank++;
+          }
+          banks.insert(first_bank);
+          
+          patterns.push_back(build_mapped(first_bank, parameters, args));
+        }
+
+        printf("created %lu patterns for analysis run.\n", patterns.size());
+
+        std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6);
+        
+        for(int j = 0; j < final_reports.size(); j++) {
+          if(final_reports[j].sum_flips() > 0) {
+            auto loc_reports = final_reports[j].get_reports();
+            for(int k = 0; k < loc_reports.size(); k++) {
+              if(loc_reports[k].flips > 0) {
+                effective_pattern_counts[threads - 1]++;
+                thread_pattern_lengths[threads - 1] += loc_reports[k].pattern.mapper.aggressor_to_addr.size();
+                thread_aggressor_nums[threads - 1] += loc_reports[k].pattern.pattern.aggressors.size();
                 thread_flips[k] += loc_reports[k].flips;
+                
+                size_t bank_no = loc_reports[k].pattern.mapper.bank_no;
+                if(!bank_flip_counts.contains(bank_no)) {
+                  bank_flip_counts[bank_no] = 0;
+                }
+                bank_flip_counts[bank_no] += loc_reports[k].flips;
+
+                if(!bank_effective_counts.contains(bank_no)) {
+                  bank_effective_counts[bank_no] = 0;
+                }
+                bank_effective_counts[bank_no++];
               }
+              printf("[ANALYSIS] pattern %s produced %lu flips over %d threads on location %d!\n", 
+                     loc_reports[k].pattern.pattern.instance_id.c_str(),
+                     final_reports[j].sum_flips(),
+                     threads,
+                     j);
+
+              printf("[THREAD-ANALYSIS] thread %d produced %lu flips on pattern %s at location %d!\n",
+                     k, 
+                     loc_reports[k].flips,
+                     loc_reports[k].pattern.pattern.instance_id.c_str(),
+                     j);
             }
           }
         }
       }
     }
-    
-    for(int i = 0; i < 8; i++) {
-      printf("fuzzing using %d threads yielded %lu flips.\n", i + 1, thread_flips[i]);
-    }
+  }
+
+  printf("%-10s %-10s %-10s %-10s %-10s\n", "threads", "effective", "avg. length", "avg. aggs", "flips");
+
+  for(int i = 0; i < 8; i++) {
+    size_t effective = effective_pattern_counts[i];
+    double_t avg_length = (double_t)thread_aggressor_nums[i] / effective;
+    double_t avg_aggrs = (double_t)thread_pattern_lengths[i] / effective;
+    size_t flips = thread_flips[i];
+    char avg_length_str[10];    
+    char avg_aggr_str[10];
+    sprintf(avg_length_str, "%.2f", avg_length);
+    sprintf(avg_aggr_str, "%.2f", avg_aggrs);
+    printf("%-10d %-10lu %-10s %-10s %-10lu\n", i + 1, effective, avg_length_str, avg_aggr_str, flips);
+  }
+
+  printf("%-10s %-10s %-10s\n", "bank no.", "effective", "flips");
+  for(auto pair : bank_effective_counts) {
+    printf("%-10lu %-10lu %-10lu\n", pair.first, pair.second, bank_flip_counts[pair.first]);
   }
 }
 
@@ -314,7 +413,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {
   auto start = std::chrono::steady_clock::now();
   auto max_duration = std::chrono::seconds(args.runtime_limit);
   while(std::chrono::steady_clock::now() - start < max_duration) {
-    reports.push_back(fuzz(args.locations, args.threads, args.interleaved));
+    reports.push_back(fuzz(args));
     printf("managed to flip %lu bits over %lu reports.\n", reports.back().sum_flips(), reports.back().get_reports().size());
   }
 
@@ -323,7 +422,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {
          std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
 
   if(args.test_effective_patterns) {
-    check_effective_patterns(reports);
+    check_effective_patterns(reports, args);
   }
 
   return reports;

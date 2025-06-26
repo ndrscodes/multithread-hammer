@@ -27,6 +27,8 @@ PatternAddressMapper::PatternAddressMapper(uint64_t seed)
   gen = std::mt19937(seed);
 }
 
+
+
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
                                                const std::vector<AggressorAccessPattern> &agg_access_patterns,
                                                bool verbose) {

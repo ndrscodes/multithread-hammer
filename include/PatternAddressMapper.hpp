@@ -54,6 +54,9 @@ class PatternAddressMapper {
   // it is incremented for each mapping and reset to 0 once we tested all banks (depending on num_probes_per_pattern
   // this may happen after we tested more than one pattern)
   static int bank_counter;
+  static void set_bank_counter(int counter) {
+    bank_counter = counter;
+  }
 
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;

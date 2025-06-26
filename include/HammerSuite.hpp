@@ -33,13 +33,18 @@ private:
                  FuzzingParameterSet &params, 
                  std::barrier<> &start_barrier, 
                  RefreshTimer &timer);
-  void check_effective_patterns(std::vector<FuzzReport> &patterns);
+  void check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args);
   Memory &memory;
   std::mt19937 engine;
 public:
   HammerSuite(Memory &memory);
   HammerSuite(Memory &memory, uint64_t seed);
-  FuzzReport fuzz(size_t locations, size_t patterns, bool interleaved);
+  MappedPattern build_mapped(FuzzingParameterSet &params, Args &args);
+  HammeringPattern generate_pattern(FuzzingParameterSet &params, Args &args);
+  MappedPattern build_mapped(int bank, FuzzingParameterSet &params, Args &args);
+  MappedPattern map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, Args &args);
+  MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, Args &args);
+  FuzzReport fuzz(Args &args);
   LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params);
   std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations);
   std::vector<LocationReport> fuzz_location(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, size_t locations);
