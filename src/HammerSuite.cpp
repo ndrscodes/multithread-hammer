@@ -417,7 +417,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
           }
           effective_banks_per_num_patterns[loc.get_reports().size() - 1] = banks.size();
           if(banks.size() > 0) {
-            num_available_reports_per_num_patterns[loc.get_reports().size()]++;
+            num_available_reports_per_num_patterns[loc.get_reports().size() - 1]++;
           }
         }
       }
