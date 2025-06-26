@@ -446,10 +446,13 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
 
   for(auto& report : effective_reports) {
     FuzzingParameterSet parameters = report.get_fuzzing_params();
-    FuzzReport fuzzing_run_report(parameters);
     for(auto location_report : report.get_reports()) {
+      for(auto& p : location_report.get_reports()) {
+        p.pattern.mapper.bit_flips.clear();
+      }
       //check from 1 to 6 threads
       for(int threads = 1; threads <= 8; threads++) {
+        FuzzReport fuzzing_run_report(parameters);
         std::vector<MappedPattern> patterns;
         std::set<size_t> banks;
         std::vector<PatternReport> pattern_reports = location_report.get_reports();
@@ -467,6 +470,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
           while(banks.contains(first_bank)) {
             first_bank++;
           }
+          first_bank %= DRAMConfig::get().banks();
           banks.insert(first_bank);
           
           patterns.push_back(build_mapped(first_bank, parameters, args));
@@ -479,9 +483,9 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
         for(int j = 0; j < final_reports.size(); j++) {
           fuzzing_run_report.add_report(final_reports[j]);
         }
+        fuzz_reports.push_back(fuzzing_run_report);
       }
     }
-    fuzz_reports.push_back(fuzzing_run_report);
   }
 
   filter_and_analyze_flips(fuzz_reports);
