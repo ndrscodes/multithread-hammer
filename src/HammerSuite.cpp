@@ -12,6 +12,7 @@
 #include <emmintrin.h>
 #include <pthread.h>
 #include <random>
+#include <sched.h>
 #include <set>
 #include <thread>
 #include <vector>
@@ -457,9 +458,10 @@ void HammerSuite::hammer_fn(size_t id,
   CPU_ZERO(&cpuset);
   CPU_SET(id % 16, &cpuset);
   int rc = pthread_setaffinity_np(self, sizeof(cpu_set_t), &cpuset); 
+  sched_yield();
 
-  start_barrier.arrive_and_wait();
   printf("thread %lu is starting a hammering run for %lu addresses.\n", id, pattern.size());
+  start_barrier.arrive_and_wait();
 #if SYNC_TO_REF
   timer.wait_for_refresh(DRAMAddr((void *)pattern[0]).actual_bank());
 #endif
