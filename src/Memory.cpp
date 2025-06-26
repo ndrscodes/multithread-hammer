@@ -76,6 +76,7 @@ void Memory::initialize(DATA_PATTERN data_pattern) {
 
 size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_mode, bool verbose) {
   flipped_bits.clear();
+  mapping.bit_flips.emplace_back();
 
   auto victim_rows = mapping.get_victim_rows();
   if (verbose) Logger::log_info(format_string("Checking %zu victims for bit flips.", victim_rows.size()));
