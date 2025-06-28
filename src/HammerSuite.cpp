@@ -481,9 +481,8 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
           
           size_t first_bank = patterns[0].mapper.bank_no;
           while(banks.contains(first_bank)) {
-            first_bank++;
+            first_bank = first_bank + 1 % DRAMConfig::get().banks();
           }
-          first_bank %= DRAMConfig::get().banks();
           banks.insert(first_bank);
 
           bool simple = (args.simple_patterns_first_thread && patterns.size() == 0) 
