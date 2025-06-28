@@ -68,7 +68,7 @@ Args parse_args(int argc, char* argv[]) {
         printf("unknown fence type \"%s\"\n", argv[i + 1]);
         exit(EXIT_FAILURE);
       }
-    } else if(strcmp("--scheduling", argv[i]) && i + 1 < argc) {
+    } else if(strcmp("--scheduling", argv[i]) == 0 && i + 1 < argc) {
       std::string str(argv[i + 1]);
       int idx = str.find(",");
       if(idx != std::string::npos) {
