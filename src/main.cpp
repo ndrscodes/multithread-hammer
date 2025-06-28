@@ -73,7 +73,7 @@ Args parse_args(int argc, char* argv[]) {
       int idx = str.find(",");
       if(idx != std::string::npos) {
         args.scheduling_policy_first_thread = find_policy(str.substr(0, idx));
-        args.scheduling_policy_other_threads = find_policy(str.substr(idx));
+        args.scheduling_policy_other_threads = find_policy(str.substr(idx + 1));
       } else {
         SCHEDULING_POLICY policy = find_policy(str);
         args.scheduling_policy_first_thread = policy;
@@ -84,7 +84,7 @@ Args parse_args(int argc, char* argv[]) {
       int idx = str.find(",");
       if(idx != std::string::npos) {
         args.simple_patterns_first_thread = string_to_bool(str.substr(0, idx));
-        args.simple_patterns_other_threads = string_to_bool(str.substr(idx));
+        args.simple_patterns_other_threads = string_to_bool(str.substr(idx + 1));
       } else {
         bool simple = string_to_bool(str);
         args.simple_patterns_first_thread = simple;
