@@ -2,14 +2,41 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
+#include "Enums.hpp"
 #include "GlobalDefines.hpp"
 #include "HammerSuite.hpp"
 #include "Logger.hpp"
 #include "Memory.hpp"
 #include <sys/resource.h>
+
+SCHEDULING_POLICY find_policy(std::string policy) {
+  if("pair" == policy) {
+    return SCHEDULING_POLICY::PAIR;
+  } else if("full" == policy) {
+    return SCHEDULING_POLICY::FULL;
+  } else if("halfbase" == policy) {
+    return SCHEDULING_POLICY::HALF_BASE_PERIOD;
+  } else if("base" == policy) {
+    return SCHEDULING_POLICY::BASE_PERIOD;
+  } else if("repeat" == policy) {
+    return SCHEDULING_POLICY::REPETITON;
+  } else if("default" == policy) {
+    return SCHEDULING_POLICY::DEFAULT;
+  } else if("none" == policy) {
+    return SCHEDULING_POLICY::NONE;
+  }
+  
+  printf("unknown scheduling policy \"%s\"\n", policy.c_str());
+  exit(EXIT_FAILURE);
+}
+
+bool string_to_bool(std::string str) {
+  return "true" == str;
+}
 
 Args parse_args(int argc, char* argv[]) {
   Args args;
@@ -30,6 +57,39 @@ Args parse_args(int argc, char* argv[]) {
       i++;
     } else if(strcmp("-i", argv[i]) == 0 || strcmp("--interleaved", argv[i]) == 0) {
       args.interleaved = true;
+    } else if(strcmp("--fence-type", argv[i]) == 0 && i + 1 < argc) {
+      if(strcmp("lfence", argv[i + 1]) == 0) {
+        args.fence_type = FENCE_TYPE::LFENCE;
+      } else if(strcmp("sfence", argv[i + 1]) == 0) {
+        args.fence_type = FENCE_TYPE::SFENCE;
+      } else if(strcmp("mfence", argv[i + 1]) == 0) {
+        args.fence_type = FENCE_TYPE::MFENCE;
+      } else {
+        printf("unknown fence type \"%s\"\n", argv[i + 1]);
+        exit(EXIT_FAILURE);
+      }
+    } else if(strcmp("--scheduling", argv[i]) && i + 1 < argc) {
+      std::string str(argv[i + 1]);
+      int idx = str.find(",");
+      if(idx != std::string::npos) {
+        args.scheduling_policy_first_thread = find_policy(str.substr(0, idx));
+        args.scheduling_policy_other_threads = find_policy(str.substr(idx));
+      } else {
+        SCHEDULING_POLICY policy = find_policy(str);
+        args.scheduling_policy_first_thread = policy;
+        args.scheduling_policy_other_threads = policy;
+      }
+    } else if(strcmp("--simple", argv[i]) == 0 && i + 1 < argc) {
+      std::string str(argv[i + 1]);
+      int idx = str.find(",");
+      if(idx != std::string::npos) {
+        args.simple_patterns_first_thread = string_to_bool(str.substr(0, idx));
+        args.simple_patterns_other_threads = string_to_bool(str.substr(idx));
+      } else {
+        bool simple = string_to_bool(str);
+        args.simple_patterns_first_thread = simple;
+        args.simple_patterns_other_threads = simple;
+      }
     }
   }
 
@@ -58,6 +118,11 @@ int main(int argc, char* argv[]) {
   printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
   printf("initialized location parameter to %hu.\n", args.locations);
   printf("initialized threads parameter to %hu\n", args.threads);
+  printf("initialized scheduling policy for first thread to %s\n", to_string(args.scheduling_policy_first_thread).c_str());
+  printf("initialized scheduling policy for other threads to %s\n", to_string(args.scheduling_policy_other_threads).c_str());
+  printf("initialized simple pattern mode for first thread to %b\n", args.simple_patterns_first_thread);
+  printf("initialized simple pattern mode for other threads to %b\n", args.simple_patterns_other_threads);
+  printf("initialized fencing strategy to %s\n", to_string(args.fence_type).c_str());
   HammerSuite *suite;
   if(args.interleaved) {
     printf("running in interleaved mode, just a single thread will be used.\n");

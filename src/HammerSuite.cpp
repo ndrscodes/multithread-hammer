@@ -43,7 +43,7 @@ HammerSuite::HammerSuite(Memory &memory, uint64_t seed) : memory(memory) {
   engine = std::mt19937(seed);
 }
 
-LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params) {
+LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, Args &args) {
   std::vector<std::thread> threads(patterns.size());
   std::vector<LocationReport> report;
   std::uniform_int_distribution shift_dist(2, 64);
@@ -116,12 +116,16 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
       jitter,
       params, 
       fake_barrier,
-      timer 
+      timer,
+      args.fence_type
     );
 
   } else {
+
+    std::vector<std::vector<volatile char *>> non_accessed_rows(patterns.size());
     std::barrier barrier(patterns.size());
     for(int i = 0; i < exported_patterns.size(); i++) {
+      non_accessed_rows[i] = patterns[i].mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
       DRAMAddr first_addr(0, 0, 0);
       for(auto ptr : exported_patterns[i]) {
         if(ptr == nullptr) {
@@ -136,12 +140,13 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
         &HammerSuite::hammer_fn, 
         this, 
         thread_id++, 
-        exported_patterns[i],
-        patterns[i].mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows()),
+        std::ref(exported_patterns[i]),
+        std::ref(non_accessed_rows[i]),
         std::ref(patterns[i].mapper.get_code_jitter()),
         std::ref(params),
         std::ref(barrier), 
-        std::ref(timer)
+        std::ref(timer),
+        args.fence_type
       );
     }
   
@@ -189,7 +194,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, F
   return locationReport;
 }
 
-std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
+std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, size_t locations, Args &args) {
   std::vector<LocationReport> location_reports(locations);
   std::uniform_int_distribution row_shift_dist(1, 64);
 
@@ -198,7 +203,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<MappedPattern
     exit(1);
   }
 
-  location_reports[0] = fuzz_pattern(patterns, params);
+  location_reports[0] = fuzz_pattern(patterns, params, args);
   if(--locations == 0) {
     return location_reports;
   }
@@ -207,13 +212,13 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<MappedPattern
     for(int j = 0; j < patterns.size(); j++) {
       patterns[j].mapper.shift_mapping(row_shift_dist(engine), {});
     }
-    location_reports[i + 1] = fuzz_pattern(patterns, params);
+    location_reports[i + 1] = fuzz_pattern(patterns, params, args);
   }
 
   return location_reports;
 }
 
-std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations) {
+std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations, Args &args) {
   std::vector<LocationReport> location_reports(locations);
   std::vector<MappedPattern> mapped_patterns(patterns.size());
   std::uniform_int_distribution row_shift_dist(1, 64);
@@ -231,7 +236,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
     mapped_patterns[i].mapper.randomize_addresses(params, mapped_patterns[i].pattern.agg_access_patterns, true);
   }
 
-  return fuzz_location(mapped_patterns, params, locations);
+  return fuzz_location(mapped_patterns, params, locations, args);
 }
 
 FuzzReport HammerSuite::fuzz(Args &args) {
@@ -252,7 +257,7 @@ FuzzReport HammerSuite::fuzz(Args &args) {
 
   FuzzReport report(parameters);
   printf("running %hu patterns over %hu locations...\n", args.threads, args.locations);
-  for(auto location_report : fuzz_location(fuzz_patterns, parameters, args.locations)) {
+  for(auto location_report : fuzz_location(fuzz_patterns, parameters, args.locations, args)) {
     report.add_report(location_report);
   }
   printf("executed fuzzing run on %hu locations with %hu patterns, flipping %lu bits.\n", args.locations, args.threads, report.get_reports().back().sum_flips());
@@ -478,7 +483,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
 
         printf("created %lu patterns for analysis run.\n", patterns.size());
 
-        std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6);
+        std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6, args);
         
         for(int j = 0; j < final_reports.size(); j++) {
           fuzzing_run_report.add_report(final_reports[j]);
@@ -513,19 +518,20 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {
 }
 
 void HammerSuite::hammer_fn(size_t id,
-                            std::vector<volatile char *> pattern,
-                            std::vector<volatile char *> non_accessed_rows,
+                            std::vector<volatile char *> &pattern,
+                            std::vector<volatile char *> &non_accessed_rows,
                             CodeJitter &jitter,
                             FuzzingParameterSet &params,
                             std::barrier<> &start_barrier, 
-                            RefreshTimer &timer) {
+                            RefreshTimer &timer,
+                            FENCE_TYPE fence_type) {
 #define USE_ZEN_JITTER 1
 
 #if USE_ZEN_JITTER
   jitter.jit_strict(params.flushing_strategy, 
                     params.fencing_strategy, 
                     pattern, 
-                    FENCE_TYPE::MFENCE, 
+                    fence_type, 
                     params.get_hammering_total_num_activations());
 #else 
   Jitter jitter(timer.get_refresh_threshold());

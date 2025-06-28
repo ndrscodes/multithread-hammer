@@ -5,6 +5,7 @@
 #include <random>
 #include <vector>
 #include "CodeJitter.hpp"
+#include "Enums.hpp"
 #include "FuzzReport.hpp"
 #include "FuzzingParameterSet.hpp"
 #include "HammeringPattern.hpp"
@@ -20,6 +21,11 @@ struct Args {
   bool test_effective_patterns = false;
   uint64_t seed = 0;
   bool interleaved = false;
+  FENCE_TYPE fence_type = FENCE_TYPE::MFENCE;
+  SCHEDULING_POLICY scheduling_policy_first_thread = SCHEDULING_POLICY::DEFAULT;
+  SCHEDULING_POLICY scheduling_policy_other_threads = SCHEDULING_POLICY::DEFAULT;
+  bool simple_patterns_first_thread = false;
+  bool simple_patterns_other_threads = false;
 };
 
 class HammerSuite {
@@ -27,12 +33,13 @@ private:
   size_t current_pattern_id;
   std::map<size_t, HammeringPattern> patterns;
   void hammer_fn(size_t id, 
-                 std::vector<volatile char *> pattern, 
-                 std::vector<volatile char *> non_accessed_rows, 
+                 std::vector<volatile char *> &pattern, 
+                 std::vector<volatile char *> &non_accessed_rows, 
                  CodeJitter &jitter,
                  FuzzingParameterSet &params, 
                  std::barrier<> &start_barrier, 
-                 RefreshTimer &timer);
+                 RefreshTimer &timer,
+                 FENCE_TYPE fence_type);
   void check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args);
   Memory &memory;
   std::mt19937 engine;
@@ -46,8 +53,8 @@ public:
   MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, Args &args);
   std::vector<FuzzReport> filter_and_analyze_flips(std::vector<FuzzReport> &patterns);
   FuzzReport fuzz(Args &args);
-  LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params);
-  std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations);
-  std::vector<LocationReport> fuzz_location(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, size_t locations);
+  LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, Args &args);
+  std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations, Args &args);
+  std::vector<LocationReport> fuzz_location(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, size_t locations, Args &args);
   std::vector<FuzzReport> auto_fuzz(Args args);
 };
