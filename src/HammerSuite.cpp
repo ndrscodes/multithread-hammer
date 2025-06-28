@@ -356,7 +356,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
             thread_aggressor_nums[threads - 1] += loc_reports[k].pattern.pattern.aggressors.size();
             thread_flips[threads - 1] += loc_reports[k].flips;
             
-            size_t bank_no = loc_reports[k].pattern.mapper.bank_no;
+            size_t bank_no = loc_reports[k].pattern.mapper.bank_no % DRAMConfig::get().banks();
             if(!bank_flip_counts.contains(bank_no)) {
               bank_flip_counts[bank_no] = 0;
             }
@@ -493,7 +493,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
 
         printf("created %lu patterns for analysis run.\n", patterns.size());
 
-        std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 6, args);
+        std::vector<LocationReport> final_reports = fuzz_location(patterns, parameters, 3, args);
         
         for(int j = 0; j < final_reports.size(); j++) {
           fuzzing_run_report.add_report(final_reports[j]);
@@ -556,7 +556,11 @@ void HammerSuite::hammer_fn(size_t id,
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
   CPU_SET(id % 16, &cpuset);
-  int rc = pthread_setaffinity_np(self, sizeof(cpu_set_t), &cpuset); 
+  int rc = pthread_setaffinity_np(self, sizeof(cpu_set_t), &cpuset);
+  if(rc) {
+    printf("unable to set affinity to %lu\n.", id % 16);
+    exit(1);
+  }
   sched_yield();
 
   printf("thread %lu is starting a hammering run for %lu addresses.\n", id, pattern.size());
