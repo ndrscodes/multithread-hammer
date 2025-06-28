@@ -23,6 +23,7 @@ add_library(
   CodeJitter.cpp
   Enums.cpp
   RandomPatternBuilder.cpp
+  SimplePatternBuilder.cpp
 )
 
 target_include_directories(src PUBLIC

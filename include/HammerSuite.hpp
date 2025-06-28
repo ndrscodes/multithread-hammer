@@ -46,11 +46,11 @@ private:
 public:
   HammerSuite(Memory &memory);
   HammerSuite(Memory &memory, uint64_t seed);
-  MappedPattern build_mapped(FuzzingParameterSet &params, Args &args);
-  HammeringPattern generate_pattern(FuzzingParameterSet &params, Args &args);
-  MappedPattern build_mapped(int bank, FuzzingParameterSet &params, Args &args);
-  MappedPattern map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, Args &args);
-  MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, Args &args);
+  MappedPattern build_mapped(FuzzingParameterSet &params, size_t seed, bool simple);
+  HammeringPattern generate_pattern(FuzzingParameterSet &params, size_t seed, bool simple);
+  MappedPattern build_mapped(int bank, FuzzingParameterSet &params, size_t seed, bool simple);
+  MappedPattern map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, size_t seed, bool simple);
+  MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, size_t seed, bool simple);
   std::vector<FuzzReport> filter_and_analyze_flips(std::vector<FuzzReport> &patterns);
   FuzzReport fuzz(Args &args);
   LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, Args &args);
