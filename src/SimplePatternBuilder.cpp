@@ -34,7 +34,7 @@ void SimplePatternBuilder::generate_pattern(HammeringPattern &pattern, size_t mi
     next_pattern.frequency = 1;
     pattern.agg_access_patterns.push_back(next_pattern);
 
-    while(inner_length > 0) {
+    while(inner_length > 0 && current_length < target_length) {
       pattern.aggressors[current_length++] = aggressors[inner_length-- % num_aggs];
     }
   }
