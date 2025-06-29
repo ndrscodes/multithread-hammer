@@ -211,11 +211,12 @@ std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::v
   std::vector<volatile char *> &main_pattern = patterns[0];
   
   int i;
+  int count = 0;
   for(i = 0; i < main_pattern.size() - 1; i += 2) {
     final_pattern.push_back(main_pattern[i]);
     final_pattern.push_back(main_pattern[i + 1]);
 
-    if(i % distance != 0) {
+    if(count++ % distance != 0) {
       continue;
     }
 
