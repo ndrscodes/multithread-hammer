@@ -24,6 +24,7 @@ add_library(
   Enums.cpp
   RandomPatternBuilder.cpp
   SimplePatternBuilder.cpp
+  CsvExporter.cpp
 )
 
 target_include_directories(src PUBLIC

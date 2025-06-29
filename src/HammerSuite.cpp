@@ -9,10 +9,12 @@
 #include <cstdlib>
 #include <ctime>
 #include <emmintrin.h>
+#include <fstream>
 #include <pthread.h>
 #include <random>
 #include <sched.h>
 #include <set>
+#include <string>
 #include <thread>
 #include <vector>
 #include <x86intrin.h>
@@ -30,6 +32,7 @@
 #include "RefreshTimer.hpp"
 #include "Jitter.hpp"
 #include "SimplePatternBuilder.hpp"
+#include "CsvExporter.hpp"
 #define SYNC_TO_REF 0
 
 size_t ACTIVATIONS = 6000000;
@@ -315,7 +318,7 @@ MappedPattern HammerSuite::build_mapped(FuzzingParameterSet &params, size_t seed
   return map_pattern(pattern, params, seed, simple);
 }
 
-std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzReport> &patterns) {
+std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzReport> &patterns, std::string &filepath) {
   printf("\n##### BEGIN EFFECTIVE PATTERN ANALYSIS #####\n\n");
 
   std::vector<FuzzReport> effective_reports;
@@ -413,14 +416,19 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
     int one_to_zero = 0;
     int num_bitflips = 0;
 
+    CsvExporter exporter(filepath);
+
     printf("we found bitflip information on at least one pattern. Running analysis...\n");
-    for(auto& report : effective_reports) {
-      auto loc_reports = report.get_reports();
+    for(int r = 0; r < effective_reports.size(); r++) {
+      auto loc_reports = effective_reports[r].get_reports();
       for(int loc = 0; loc < loc_reports.size(); loc++) {
         bool effective = false;
-        for(auto& pat : loc_reports[loc].get_reports()) {
+        auto patterns = loc_reports[loc].get_reports();
+        for(int p = 0; p < patterns.size(); p++) {
+          auto pat = patterns[p];
           std::set<size_t> banks;
           for(auto& flip : pat.pattern.mapper.bit_flips[loc]) {
+            exporter.export_flip(flip, r, loc, p);
             banks.insert(flip.address.actual_bank());
             int z = flip.count_o2z_corruptions();
             int o = flip.count_z2o_corruptions();
@@ -436,7 +444,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
         }
       }
     }
-    
+
     printf("found %d bitflips of which %d (%f) were one-to-zero and %d (%f) were zero-to-one flips.\n",
            num_bitflips, one_to_zero, one_to_zero / (double_t)num_bitflips, zero_to_one, zero_to_one / (double_t)num_bitflips);
     printf("%-10s %-10s\n", "threads", "banks");
@@ -455,7 +463,8 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
 
 void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args) {
   std::vector<FuzzReport> fuzz_reports;
-  std::vector<FuzzReport> effective_reports = filter_and_analyze_flips(patterns);
+  std::string path("bit_flips_search.csv");
+  std::vector<FuzzReport> effective_reports = filter_and_analyze_flips(patterns, path);
 
   for(auto& report : effective_reports) {
     FuzzingParameterSet parameters = report.get_fuzzing_params();
@@ -502,8 +511,9 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
       }
     }
   }
-
-  filter_and_analyze_flips(fuzz_reports);
+  
+  path = std::string("bit_flips_analysis.csv");
+  filter_and_analyze_flips(fuzz_reports, path);
 }
 
 std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {

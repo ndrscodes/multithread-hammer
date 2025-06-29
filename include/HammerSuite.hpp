@@ -51,7 +51,7 @@ public:
   MappedPattern build_mapped(int bank, FuzzingParameterSet &params, size_t seed, bool simple);
   MappedPattern map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, size_t seed, bool simple);
   MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, size_t seed, bool simple);
-  std::vector<FuzzReport> filter_and_analyze_flips(std::vector<FuzzReport> &patterns);
+  std::vector<FuzzReport> filter_and_analyze_flips(std::vector<FuzzReport> &patterns, std::string &filepath);
   FuzzReport fuzz(Args &args);
   LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, Args &args);
   std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations, Args &args);
