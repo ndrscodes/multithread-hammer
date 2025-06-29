@@ -15,7 +15,7 @@ CsvExporter::~CsvExporter() {
 }
 
 void CsvExporter::export_flip(BitFlip &flip, int run, int location, int pattern) {
-  fprintf(logfile, "%d;%d;%d;%lu;%lu;%lu;%lu;%lu",
+  fprintf(logfile, "%d;%d;%d;%lu;%lu;%lu;%lu;%lu\n",
           run,
           location,
           pattern,
