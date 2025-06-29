@@ -14,11 +14,12 @@ CsvExporter::~CsvExporter() {
   fclose(logfile);
 }
 
-void CsvExporter::export_flip(BitFlip &flip, int run, int location, int pattern) {
-  fprintf(logfile, "%d;%d;%d;%lu;%lu;%lu;%lu;%lu\n",
+void CsvExporter::export_flip(BitFlip &flip, int run, int location, int pattern, int n_patterns) {
+  fprintf(logfile, "%d;%d;%d;%d;%lu;%lu;%lu;%lu;%lu\n",
           run,
           location,
           pattern,
+          n_patterns,
           flip.address.actual_bank(),
           flip.address.actual_row(),
           flip.address.actual_column(),

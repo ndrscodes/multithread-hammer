@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <random>
 
+#include "Enums.hpp"
 #include "HammeringPattern.hpp"
 #include "GlobalDefines.hpp"
 #include "DRAMConfig.hpp"
@@ -190,11 +192,54 @@ void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPa
         auto victim_start = DRAMAddr(dram_addr.bank, static_cast<size_t>(cur_row_candidate), 0);
         if (victim_rows.count(static_cast<volatile char *>(victim_start.to_virt())) > 0)
           continue;
-
         victim_rows.insert(static_cast<volatile char *>(victim_start.to_virt()));
       }
     }
   }
+}
+
+std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::vector<volatile char *>> &patterns, bool single_pair_per_iter, size_t distance) {
+  std::vector<volatile char *> final_pattern;
+  
+  if(patterns.size() == 1) {
+    return patterns[0];
+  }
+
+  std::random_device rd;
+  std::mt19937 engine(rd());
+  std::uniform_int_distribution<> random_pattern_dist(1, patterns.size() - 1);
+  std::vector<volatile char *> &main_pattern = patterns[0];
+  
+  int i;
+  for(i = 0; i < main_pattern.size() - 1; i += 2) {
+    final_pattern.push_back(main_pattern[i]);
+    final_pattern.push_back(main_pattern[i + 1]);
+
+    if(i % distance != 0) {
+      continue;
+    }
+
+    for(int j = single_pair_per_iter ? random_pattern_dist(engine) : 1; j < patterns.size(); j++) {
+      if(patterns[j].size() >= i) {
+        continue;
+      }
+      final_pattern.push_back(patterns[j][i]);
+      if(patterns[j].size() >= i + 1) {
+        continue;
+      }
+      final_pattern.push_back(patterns[j][i + 1]);
+
+      if(single_pair_per_iter) {
+        break;
+      }
+    }
+  }
+
+  if(i < main_pattern.size()) {
+    final_pattern.push_back(main_pattern[i]);
+  }
+
+  return final_pattern;
 }
 
 std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_every_nth_access(const HammeringPattern& pattern, int n) {

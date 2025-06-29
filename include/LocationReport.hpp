@@ -1,4 +1,5 @@
 #pragma once
+#include "FuzzingParameterSet.hpp"
 #include "MappedPattern.hpp"
 #include <vector>
 

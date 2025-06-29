@@ -1,3 +1,4 @@
+#include "FuzzingParameterSet.hpp"
 #include "HammeringPattern.hpp"
 #include "asmjit/core/codeholder.h"
 #include <random>
@@ -11,19 +12,15 @@ SimplePatternBuilder::SimplePatternBuilder(size_t seed) {
   engine = std::mt19937(seed);
 }
 
-void SimplePatternBuilder::generate_pattern(HammeringPattern &pattern, size_t min_sides, size_t max_sides) {
+void SimplePatternBuilder::generate_pattern(HammeringPattern &pattern, FuzzingParameterSet &params) {
   size_t current_aggressor_id = 1;
-  std::uniform_int_distribution<> length_dist(min_sides + 1, 1024);
-  int target_length = length_dist(engine);
-  pattern.base_period = target_length / (min_sides < 16 ? min_sides : 16);
-  std::uniform_int_distribution<> inner_length_dist(min_sides, target_length / 2);
-  std::uniform_int_distribution<> n_sided_count_dist(min_sides, max_sides);
+  int target_length = params.get_total_acts_pattern();
 
   int current_length = 0;
   pattern.aggressors = std::vector<Aggressor>(target_length, Aggressor());
   while(current_length < target_length) {
-    int inner_length = length_dist(engine);
-    int num_aggs = n_sided_count_dist(engine);
+    int inner_length = params.get_random_amplitude(target_length / 2);
+    int num_aggs = params.get_random_N_sided();
     std::vector<Aggressor> aggressors(num_aggs);
     for(int i = 0; i < aggressors.size(); i++) {
       aggressors[i] = Aggressor(current_aggressor_id++);

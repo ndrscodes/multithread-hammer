@@ -26,6 +26,12 @@ struct Args {
   SCHEDULING_POLICY scheduling_policy_other_threads = SCHEDULING_POLICY::DEFAULT;
   bool simple_patterns_first_thread = false;
   bool simple_patterns_other_threads = false;
+  bool disable_fencing = false;
+  bool interleave_single_pair_only = false;
+  size_t interleaving_distance = 3;
+  bool randomize_each_pattern = false;
+  FENCING_STRATEGY fencing_strategy = FENCING_STRATEGY::EARLIEST_POSSIBLE;
+  FLUSHING_STRATEGY flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
 };
 
 class HammerSuite {
@@ -53,8 +59,8 @@ public:
   MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, size_t seed, bool simple);
   std::vector<FuzzReport> filter_and_analyze_flips(std::vector<FuzzReport> &patterns, std::string &filepath);
   FuzzReport fuzz(Args &args);
-  LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, Args &args);
-  std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, FuzzingParameterSet &params, size_t locations, Args &args);
-  std::vector<LocationReport> fuzz_location(std::vector<MappedPattern> &patterns, FuzzingParameterSet &params, size_t locations, Args &args);
+  LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, Args &args);
+  std::vector<LocationReport> fuzz_location(std::vector<HammeringPattern> &patterns, size_t locations, Args &args);
+  std::vector<LocationReport> fuzz_location(std::vector<MappedPattern> &patterns, size_t locations, Args &args);
   std::vector<FuzzReport> auto_fuzz(Args args);
 };

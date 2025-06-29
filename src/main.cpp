@@ -34,8 +34,43 @@ SCHEDULING_POLICY find_policy(std::string policy) {
   exit(EXIT_FAILURE);
 }
 
+FLUSHING_STRATEGY find_flushing_strategy(std::string strategy) {
+  if("latest" == strategy) {
+    return FLUSHING_STRATEGY::LATEST_POSSIBLE;
+  }
+
+  return FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
+}
+
+FENCING_STRATEGY find_fencing_strategy(std::string strategy) {
+  if("omit" == strategy) {
+    return FENCING_STRATEGY::OMIT_FENCING;
+  } else if("latest" == strategy) {
+    return FENCING_STRATEGY::LATEST_POSSIBLE;
+  }
+
+  return FENCING_STRATEGY::EARLIEST_POSSIBLE;
+}
+
 bool string_to_bool(std::string str) {
   return "true" == str;
+}
+
+void print_help() {
+  printf("%-40s: runtime in seconds.\n", "-r, --runtime <seconds>");
+  printf("%-40s: number of locations.\n", "-l, --locations <locations>");
+  printf("%-40s: number of threads/interleaved patterns.\n", "-t, --threads <threads>");
+  printf("%-40s: check effective patterns after run.\n", "-f, --fuzz-effective");
+  printf("%-40s: seed to use.\n", "-s, --seed <seed>");
+  printf("%-40s: interleaved mode. Use pattern interleaving instead of multiple threads.\n", "-i, --interleaved");
+  printf("%-40s: desired fence type (lfence, mfence, sfence).\n", "--fence-type <type>");
+  printf("%-40s: scheduling type to use (pair, base, halfbase, repeat, default, none, full).\n", "--scheduling <type[,type]>");
+  printf("%-40s: build simple patterns instead of complex zenhammer patterns.\n", "--simple <bool[,bool]>");
+  printf("%-40s: when interleaving, controls the number of normal accesses between interleaved aggressors.\n", "--interleave-distance <dist>");
+  printf("%-40s: interleave aggressors from one bank per pair instead of all of them.\n", "--interleave-single-pairs");
+  printf("%-40s: randomize each pattern per thread instead of per fuzzing run.\n", "--randomize-each");
+  printf("%-40s: the flushing strategy (earliest, latest).\n", "--flushing-strategy <type>");
+  printf("%-40s: the fencing strategy (earliest, latest, omit).\n", "--fencing-strategy <type>");
 }
 
 Args parse_args(int argc, char* argv[]) {
@@ -68,6 +103,7 @@ Args parse_args(int argc, char* argv[]) {
         printf("unknown fence type \"%s\"\n", argv[i + 1]);
         exit(EXIT_FAILURE);
       }
+      i++;
     } else if(strcmp("--scheduling", argv[i]) == 0 && i + 1 < argc) {
       std::string str(argv[i + 1]);
       int idx = str.find(",");
@@ -79,6 +115,7 @@ Args parse_args(int argc, char* argv[]) {
         args.scheduling_policy_first_thread = policy;
         args.scheduling_policy_other_threads = policy;
       }
+      i++;
     } else if(strcmp("--simple", argv[i]) == 0 && i + 1 < argc) {
       std::string str(argv[i + 1]);
       int idx = str.find(",");
@@ -90,6 +127,26 @@ Args parse_args(int argc, char* argv[]) {
         args.simple_patterns_first_thread = simple;
         args.simple_patterns_other_threads = simple;
       }
+      i++;
+    } else if(strcmp("--interleave-distance", argv[i]) == 0 && i + 1 < argc) {
+      args.interleaving_distance = atol(argv[i + 1]);
+      i++;
+    } else if(strcmp("--interleave-single-pairs", argv[i]) == 0) {
+      args.interleave_single_pair_only = true;
+    } else if(strcmp("--randomize-each", argv[i]) == 0) {
+      args.randomize_each_pattern = true;
+    } else if(strcmp("--fencing-strategy", argv[i]) == 0 && i + 1 < argc) {
+      args.fencing_strategy = find_fencing_strategy(std::string(argv[i + 1]));
+      i++;
+    } else if(strcmp("--flushing-strategy", argv[i]) == 0 && i + 1 < argc) {
+      args.flushing_strategy = find_flushing_strategy(std::string(argv[i + 1]));
+      i++;
+    } else if(strcmp("-h", argv[i]) == 0 || strcmp("--help", argv[i]) == 0) {
+      print_help();
+      exit(0);
+    } else {
+      print_help();
+      exit(1);
     }
   }
 
