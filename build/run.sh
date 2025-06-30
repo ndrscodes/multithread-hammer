@@ -41,9 +41,9 @@ function run {
     mv $f $TARGET
   done
   
-  if [ ! -z $RC ]; then
+  if [ $RC -ne 0 ]; then
     echo "something went wrong. terminating."
-    exit 1
+    exit $RC
   fi
 }
 
