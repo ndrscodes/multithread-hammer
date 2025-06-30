@@ -148,6 +148,7 @@ Args parse_args(int argc, char* argv[]) {
       args.thread_start_id = atol(argv[i + 1]);
       i++;
     } else {
+      printf("unknown option: %s\n", argv[i]);
       print_help();
       exit(1);
     }
