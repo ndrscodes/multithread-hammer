@@ -32,6 +32,7 @@ struct Args {
   bool randomize_each_pattern = false;
   FENCING_STRATEGY fencing_strategy = FENCING_STRATEGY::EARLIEST_POSSIBLE;
   FLUSHING_STRATEGY flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
+  size_t thread_start_id = 0;
 };
 
 class HammerSuite {

@@ -51,7 +51,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
   std::vector<LocationReport> report;
   std::uniform_int_distribution shift_dist(2, 64);
   std::mt19937 rand(args.seed == 0 ? std::random_device()() : args.seed);
-  size_t thread_id = start_thread;
+  size_t thread_id = args.thread_start_id;
   RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
   //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
   DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());

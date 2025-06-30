@@ -144,6 +144,9 @@ Args parse_args(int argc, char* argv[]) {
     } else if(strcmp("-h", argv[i]) == 0 || strcmp("--help", argv[i]) == 0) {
       print_help();
       exit(0);
+    } else if(strcmp("--thread", argv[i]) == 0 && i + 1 < argc) {
+      args.thread_start_id = atol(argv[i + 1]);
+      i++;
     } else {
       print_help();
       exit(1);
