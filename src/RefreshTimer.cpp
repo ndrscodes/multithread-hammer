@@ -6,7 +6,7 @@
 #include <sched.h>
 #include <vector>
 #include <math.h>
-#define PEAK_DECISION_MULTIPLIER 1.03
+#define PEAK_DECISION_MULTIPLIER 1.05
 
 RefreshTimer::RefreshTimer(volatile char *measurement_addr) : measurement_addr(measurement_addr) {
   refresh_threshold = reanalyze();
@@ -39,7 +39,7 @@ std::vector<measurement> RefreshTimer::get_measurements(size_t n) {
 }
 
 uint64_t RefreshTimer::get_refresh_threshold() {
-  return refresh_threshold - 100;
+  return refresh_threshold - 120;
 }
 
 uint64_t RefreshTimer::get_cycles_per_refresh() {
