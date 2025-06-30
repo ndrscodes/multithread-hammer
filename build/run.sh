@@ -78,9 +78,9 @@ run "thread-simple-lfence" -t 1 -l 1 --simple true --fence-type lfence
 # 2 threads, simple
 run "2-threads-simple" -t 2 -l 1 --simple true
 # 2 threads, simple, lfence
-run "2-simple-lfence" -t 2 -l 1 --simple --fence-type lfence
+run "2-simple-lfence" -t 2 -l 1 --simple true --fence-type lfence
 # 2 threads, simple, sfence
-run "2-simple-sfence" -t 2 -l 1 --simple --fence-type sfence
+run "2-simple-sfence" -t 2 -l 1 --simple true --fence-type sfence
 # 1 pattern on main thread
 run "interleaved" -i -t 1 -l 1
 # 1 pattern on main thread
