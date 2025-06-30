@@ -221,11 +221,11 @@ std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::v
     }
 
     for(int j = single_pair_per_iter ? random_pattern_dist(engine) : 1; j < patterns.size(); j++) {
-      if(patterns[j].size() >= i) {
+      if(patterns[j].size() <= i) {
         continue;
       }
       final_pattern.push_back(patterns[j][i]);
-      if(patterns[j].size() >= i + 1) {
+      if(patterns[j].size() <= i + 1) {
         continue;
       }
       final_pattern.push_back(patterns[j][i + 1]);
