@@ -16,10 +16,12 @@ void SimplePatternBuilder::generate_pattern(HammeringPattern &pattern, FuzzingPa
   size_t current_aggressor_id = 1;
   int target_length = params.get_total_acts_pattern();
 
+  std::uniform_int_distribution<> amplitude_dist(2, target_length / 2);
+
   int current_length = 0;
   pattern.aggressors = std::vector<Aggressor>(target_length, Aggressor());
   while(current_length < target_length) {
-    int inner_length = params.get_random_amplitude(target_length / 2);
+    int inner_length = amplitude_dist(engine);
     int num_aggs = params.get_random_N_sided();
     std::vector<Aggressor> aggressors(num_aggs);
     for(int i = 0; i < aggressors.size(); i++) {
