@@ -43,7 +43,7 @@ function run {
   
   if [ $RC -ne 0 ]; then
     echo "something went wrong."
-    touch "$DIR/error.mark"
+    touch "$TARGET/error.mark"
   fi
 }
 
