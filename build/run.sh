@@ -17,7 +17,7 @@ elif [ ! -z $(ls -A $DIR) ]; then
   exit 1
 fi
 
-RUNTIME=600
+RUNTIME=2700
 
 function run {
   local IDENT=$1
@@ -42,13 +42,17 @@ function run {
   done
   
   if [ $RC -ne 0 ]; then
-    echo "something went wrong. terminating."
-    exit $RC
+    echo "something went wrong."
+    touch "$DIR/error.mark"
   fi
 }
 
 # 1 thread
 run "1-thread" -t 1 -l 1
+# 1 thread, omit fencing
+run "1-thread-omit" -t 1 -l 1 --fencing-strategy omit
+# 4 threads, omit fencing
+run "4-thread-omit" -t 4 -l 1 --fencing-strategy omit
 # 1 thread, different core
 run "1-thread-core-12" -t 1 -l 1 --thread 12
 # 2 threads
@@ -71,6 +75,10 @@ run "2-thread-no-fence" -t 2 -l 1 --scheduling none
 run "thread-lfence" -t 1 -l 1 --fence-type lfence
 # 1 threads, sfence
 run "thread-sfence" -t 1 -l 1 --fence-type sfence
+# 1 threads, lfence
+run "4-thread-lfence" -t 4 -l 1 --fence-type lfence
+# 1 threads, sfence
+run "4-thread-sfence" -t 4 -l 1 --fence-type sfence
 # 1 threads, simple
 run "thread-simple" -t 1 -l 1 --simple true
 # 1 threads, simple, lfence
@@ -105,4 +113,24 @@ run "4-interleaved-simple-nofence-single" -i -t 4 -l 1 --scheduling none --simpl
 run "4-interleaved-simple-nofence" -i -t 4 -l 1 --scheduling none --simple true
 # interleave simple 4 times, no fence
 run "4-interleaved-complex" -i -t 4 -l 1 --scheduling none --simple false
+# 1 thread, omit fencing
+run "1-interleaved-omit" -i -t 1 -l 1 --fencing-strategy omit
+# 4 threads, omit fencing
+run "4-interleaved-omit" -i -t 4 -l 1 --fencing-strategy omit
+# 1 thread, omit fencing
+run "1-interleaved-lfence" -i -t 1 -l 1 --fence-type lfence
+# 1 thread, omit fencing
+run "1-interleaved-sfence" -i -t 1 -l 1 --fence-type sfence
+# 4 threads, omit fencing
+run "4-interleaved-lfence" -i -t 4 -l 1 --fence-type lfence
+# 4 threads, omit fencing
+run "4-interleaved-sfence" -i -t 4 -l 1 --fence-type sfence
+# 1 thread, omit fencing
+run "1-interleaved-lfence-simple" -i -t 1 -l 1 --fence-type lfence --simple false,true
+# 1 thread, omit fencing
+run "1-interleaved-sfence-simple" -i -t 1 -l 1 --fence-type sfence --simple false,true
+# 4 threads, omit fencing
+run "4-interleaved-lfence-simple" -i -t 4 -l 1 --fence-type lfence --simple false,true
+# 4 threads, omit fencing
+run "4-interleaved-sfence-simple" -i -t 4 -l 1 --fence-type sfence --simple false,true
 
