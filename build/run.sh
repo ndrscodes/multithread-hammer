@@ -104,11 +104,11 @@ run "2-interleaved-complex-main" -i -t 2 -l 1 --scheduling default,none --simple
 # interleave complex 4 times
 run "4-interleaved" -i -t 4 -l 1 --scheduling default,none --simple false
 # interleave complex 4 times, single pair
-run "4-interleaved-single"-i -t 4 -l 1 --scheduling default,none --simple false --interleave-single-pair
+run "4-interleaved-single"-i -t 4 -l 1 --scheduling default,none --simple false --interleave-single-pairs
 # interleave simple 4 times, single pair
-run "4-interleaved-single-simple" -i -t 4 -l 1 --scheduling default,none --simple true --interleave-single-pair
+run "4-interleaved-single-simple" -i -t 4 -l 1 --scheduling default,none --simple true --interleave-single-pairs
 # interleave simple 4 times, no fence
-run "4-interleaved-simple-nofence-single" -i -t 4 -l 1 --scheduling none --simple true --interleave-single-pair
+run "4-interleaved-simple-nofence-single" -i -t 4 -l 1 --scheduling none --simple true --interleave-single-pairs
 # interleave simple 4 times, no fence
 run "4-interleaved-simple-nofence" -i -t 4 -l 1 --scheduling none --simple true
 # interleave simple 4 times, no fence
