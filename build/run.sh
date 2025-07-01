@@ -29,7 +29,7 @@ function run {
 
   echo "-f -r $RUNTIME $@" >> "$TARGET/flags.txt"
   
-  ./multithread_hammer -f -r $RUNTIME $@
+  ./multithread_hammer -f -r $RUNTIME $@ | tee "main.log"
 
   RC=$?
   
