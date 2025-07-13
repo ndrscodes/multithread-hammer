@@ -63,7 +63,8 @@ static void check_cpu_for_microarchitecture(Microarchitecture uarch) {
     case Microarchitecture::AMD_ZEN_3:
       supported_cpus = {
         "Ryzen 5 5600G",
-        "Ryzen 9 5950X"
+        "Ryzen 9 5950X",
+        "AMD Ryzen 7 8845HS"
       };
       break;
     case Microarchitecture::AMD_ZEN_4:

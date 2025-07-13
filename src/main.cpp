@@ -7,10 +7,14 @@
 #include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
 #include "Enums.hpp"
+#include "FuzzingParameterSet.hpp"
 #include "GlobalDefines.hpp"
 #include "HammerSuite.hpp"
 #include "Logger.hpp"
 #include "Memory.hpp"
+#include "PatternAddressMapper.hpp"
+#include "PatternBuilder.hpp"
+#include "SimplePatternBuilder.hpp"
 #include <sys/resource.h>
 
 SCHEDULING_POLICY find_policy(std::string policy) {
@@ -170,6 +174,11 @@ int main(int argc, char* argv[]) {
   Memory alloc(true);
   if(args.seed > 0) {
     alloc.set_seed(args.seed);
+    HammerSuite::set_seed(args.seed);
+    FuzzingParameterSet::set_seed(args.seed);
+    SimplePatternBuilder::set_seed(args.seed);
+    PatternBuilder::set_seed(args.seed);
+    PatternAddressMapper::set_seed(args.seed);
   }
   printf("creating allocation...\n");
   alloc.allocate_memory(DRAMConfig::get().memory_size());
@@ -190,10 +199,8 @@ int main(int argc, char* argv[]) {
   }
   if(args.seed > 0) {
     printf("initialized seed to %lu\n", args.seed);
-    suite = new HammerSuite(alloc, args.seed);
-  } else {
-    suite = new HammerSuite(alloc);
   }
+  suite = new HammerSuite(alloc);
   
   if(args.test_effective_patterns) {
     printf("will test effective patterns in multiple fuzzing runs after we are finished.\n");

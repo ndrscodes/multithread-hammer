@@ -38,11 +38,12 @@ size_t ACTIVATIONS = 6000000;
 int start_thread = 6;
 const bool reproducibility_mode = false;
 
+std::mt19937 HammerSuite::engine = std::mt19937(std::random_device()());
+
 HammerSuite::HammerSuite(Memory &memory) : memory(memory) {
-  engine = std::mt19937(std::random_device()());
 }
 
-HammerSuite::HammerSuite(Memory &memory, uint64_t seed) : memory(memory) {
+void HammerSuite::set_seed(uint64_t seed){
   engine = std::mt19937(seed);
 }
 
@@ -217,12 +218,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
   parameters.randomize_parameters();
 
   for(int i = 0; i < mapped_patterns.size(); i++) {
-    mapped_patterns[i] = {
-      .pattern = patterns[i],
-      .mapper = PatternAddressMapper(),
-      .params = parameters
-    };
-    mapped_patterns[i].mapper.randomize_addresses(parameters, mapped_patterns[i].pattern.agg_access_patterns, true);
+    mapped_patterns[i] = map_pattern(patterns[i], parameters, i >= 1 && args.simple_patterns_other_threads || i == 0 && args.simple_patterns_first_thread);
     if(args.randomize_each_pattern) {
       parameters = FuzzingParameterSet();
       parameters.randomize_parameters();
@@ -233,7 +229,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
 }
 
 FuzzReport HammerSuite::fuzz(Args &args) {
-  FuzzingParameterSet parameters(engine());
+  FuzzingParameterSet parameters;
   parameters.set_interleaved(args.interleaved);
   parameters.randomize_parameters();
   std::vector<HammeringPattern> fuzz_patterns(args.threads);
@@ -246,7 +242,6 @@ FuzzReport HammerSuite::fuzz(Args &args) {
 #else
     fuzz_patterns[i] = generate_pattern(
       parameters, 
-      args.seed, 
       args.simple_patterns_other_threads && i > 0 || args.simple_patterns_first_thread && i == 0);
 #endif
   }
@@ -262,42 +257,42 @@ FuzzReport HammerSuite::fuzz(Args &args) {
   return report;
 }
 
-HammeringPattern HammerSuite::generate_pattern(FuzzingParameterSet &params, size_t seed, bool simple) {
+HammeringPattern HammerSuite::generate_pattern(FuzzingParameterSet &params, bool simple) {
   HammeringPattern pattern;
   if(simple) {
-    SimplePatternBuilder builder = seed > 0 ? SimplePatternBuilder(seed) : SimplePatternBuilder();
+    SimplePatternBuilder builder = SimplePatternBuilder();
     builder.generate_pattern(pattern, params);
   } else {
-    PatternBuilder builder = seed > 0 ? PatternBuilder(pattern, seed) : PatternBuilder(pattern);
+    PatternBuilder builder = PatternBuilder(pattern);
     builder.generate_frequency_based_pattern(params);
   }
   return pattern;
 }
 
-MappedPattern HammerSuite::map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, size_t seed, bool simple) {
-  return map_pattern(-1, pattern, params, seed, simple);
+MappedPattern HammerSuite::map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, bool simple) {
+  return map_pattern(-1, pattern, params, simple);
 }
 
-MappedPattern HammerSuite::map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, size_t seed, bool simple) {
+MappedPattern HammerSuite::map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, bool simple) {
   if(bank != -1) {
     PatternAddressMapper::set_bank_counter(bank);
   }
-  PatternAddressMapper mapper = seed > 0 ? PatternAddressMapper(seed) : PatternAddressMapper();
-  mapper.randomize_addresses(params, pattern.agg_access_patterns, true);
-  return {
+  MappedPattern p = {
     .pattern = pattern,
-    .mapper = mapper
   };
+  p.mapper.randomize_addresses(params, pattern.agg_access_patterns, true);
+
+  return p;
 }
 
-MappedPattern HammerSuite::build_mapped(int bank, FuzzingParameterSet &params, size_t seed, bool simple) {
-  HammeringPattern pattern = generate_pattern(params, seed, simple);
-  return map_pattern(bank, pattern, params, seed, simple);
+MappedPattern HammerSuite::build_mapped(int bank, FuzzingParameterSet &params, bool simple) {
+  HammeringPattern pattern = generate_pattern(params, simple);
+  return map_pattern(bank, pattern, params, simple);
 }
 
-MappedPattern HammerSuite::build_mapped(FuzzingParameterSet &params, size_t seed, bool simple) {
-  HammeringPattern pattern = generate_pattern(params, seed, simple);
-  return map_pattern(pattern, params, seed, simple);
+MappedPattern HammerSuite::build_mapped(FuzzingParameterSet &params, bool simple) {
+  HammeringPattern pattern = generate_pattern(params, simple);
+  return map_pattern(pattern, params, simple);
 }
 
 std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzReport> &patterns, std::string &filepath) {
@@ -484,7 +479,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
             parameters = FuzzingParameterSet();
             parameters.randomize_parameters();
           }
-          patterns.push_back(build_mapped(first_bank, parameters, args.seed, simple));
+          patterns.push_back(build_mapped(first_bank, parameters, simple));
         }
 
         printf("created %lu patterns for analysis run.\n", patterns.size());

@@ -4,11 +4,11 @@
 #include <random>
 #include "SimplePatternBuilder.hpp"
 
+std::mt19937 SimplePatternBuilder::engine = std::mt19937(std::random_device()());
 SimplePatternBuilder::SimplePatternBuilder() {
-  engine = std::mt19937(std::random_device()());
 }
 
-SimplePatternBuilder::SimplePatternBuilder(size_t seed) {
+void SimplePatternBuilder::set_seed(uint64_t seed) {
   engine = std::mt19937(seed);
 }
 

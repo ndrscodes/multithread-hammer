@@ -15,12 +15,10 @@
 
 class FuzzingParameterSet {
  private:
-  std::mt19937 gen;
+  static std::mt19937 gen;
 
   /// MC issues a REFRESH every 7.8us to ensure that all cells are refreshed within a 64ms interval.
   int num_refresh_intervals;
-
-  uint64_t seed;
 
   /// The numbers of aggressors to be picked from during random pattern generation.
   int num_aggressors;
@@ -71,7 +69,8 @@ class FuzzingParameterSet {
 
  public:
   FuzzingParameterSet();
-  FuzzingParameterSet(uint64_t seed);
+
+  static void set_seed(uint64_t seed);
 
   FLUSHING_STRATEGY flushing_strategy;
 
@@ -116,10 +115,6 @@ class FuzzingParameterSet {
   [[nodiscard]] int get_num_refresh_intervals() const;
 
   [[nodiscard]] int get_num_base_periods() const;
-
-  void set_seed(uint64_t seed);
-  
-  uint64_t get_seed();
 
   void set_total_acts_pattern(int pattern_total_acts);
 

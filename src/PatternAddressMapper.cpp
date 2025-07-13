@@ -12,30 +12,23 @@
 
 // initialize the bank_counter (static var)
 int PatternAddressMapper::bank_counter = 0;
+std::mt19937 PatternAddressMapper::gen = std::mt19937(std::random_device()());
 
 PatternAddressMapper::PatternAddressMapper()
     : instance_id(uuid::gen_uuid()) { /* NOLINT */
   code_jitter = std::make_unique<CodeJitter>();
-
-  // standard mersenne_twister_engine seeded with rd()
-  std::random_device rd;
-  gen = std::mt19937(rd());
 }
 
-PatternAddressMapper::PatternAddressMapper(uint64_t seed)
-    : instance_id(uuid::gen_uuid()) { /* NOLINT */
-  code_jitter = std::make_unique<CodeJitter>();
-
-  gen = std::mt19937(seed);
+void PatternAddressMapper::set_seed(uint64_t seed) {
+  PatternAddressMapper::gen = std::mt19937(seed);
 }
-
-
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
                                                const std::vector<AggressorAccessPattern> &agg_access_patterns,
                                                bool verbose) {
   // clear any already existing mapping
   aggressor_to_addr.clear();
+  printf("address mapper drawing random number... it was %lu.\n", gen());
 
   // retrieve and then store randomized values as they should be the same for all added addresses
   // (store bank_no as field for get_random_nonaccessed_rows)
@@ -143,17 +136,6 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
       aggressor_to_addr.insert(std::make_pair(current_agg.id, DRAMAddr(static_cast<size_t>(bank_no), row, 0)));
     }
   }
- 
-  uint8_t bank_change_after_n = DRAMConfig::get().banks() * fuzzing_params.get_bank_change_percentage();
-  if(bank_change_after_n >= 1) {
-    for(size_t i = 0; i < aggressor_to_addr.size(); i++) {
-      if(i % bank_change_after_n == 0) {
-        size_t current_bank = aggressor_to_addr[i].bank;
-        current_bank = (current_bank + 1) % DRAMConfig::get().banks();
-        aggressor_to_addr[i].bank = current_bank;
-      }
-    }
-  }
 
   // determine victim rows
   determine_victims(agg_access_patterns);
@@ -205,8 +187,6 @@ std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::v
     return patterns[0];
   }
 
-  std::random_device rd;
-  std::mt19937 engine(rd());
   std::uniform_int_distribution<> random_pattern_dist(1, patterns.size() - 1);
   std::vector<volatile char *> &main_pattern = patterns[0];
   
@@ -220,7 +200,7 @@ std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::v
       continue;
     }
 
-    for(int j = single_pair_per_iter ? random_pattern_dist(engine) : 1; j < patterns.size(); j++) {
+    for(int j = single_pair_per_iter ? random_pattern_dist(gen) : 1; j < patterns.size(); j++) {
       if(patterns[j].size() <= i) {
         continue;
       }
@@ -619,15 +599,15 @@ PatternAddressMapper::PatternAddressMapper(const PatternAddressMapper &other)
   code_jitter->fencing_strategy = other.get_code_jitter().fencing_strategy;
   code_jitter->flushing_strategy = other.get_code_jitter().flushing_strategy;
   code_jitter->pattern_sync_each_ref = other.get_code_jitter().pattern_sync_each_ref;
-  std::random_device rd;
-  gen = std::mt19937(rd());
+  //std::random_device rd;
+  //gen = std::mt19937(rd());
 }
 
 PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper &other) {
   if (this==&other) return *this;
   victim_rows = other.victim_rows;
   instance_id = other.instance_id;
-  gen = other.gen;
+  //gen = other.gen;
 
   code_jitter = std::make_unique<CodeJitter>();
   code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;

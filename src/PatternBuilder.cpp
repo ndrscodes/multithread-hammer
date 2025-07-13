@@ -1,17 +1,17 @@
 #include <cstdint>
+#include <random>
 #include <unordered_set>
 
 #include "FuzzingParameterSet.hpp"
 #include "PatternBuilder.hpp"
 
+std::mt19937 PatternBuilder::gen = std::mt19937(std::random_device()());
+
 PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
     : pattern(hammering_pattern), aggressor_id_counter(1) {
-  std::random_device rd;
-  gen = std::mt19937(rd());
 }
 
-PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern, uint64_t seed)
-    : pattern(hammering_pattern), aggressor_id_counter(1) {
+void PatternBuilder::set_seed(uint64_t seed) {
   gen = std::mt19937(seed);
 }
 

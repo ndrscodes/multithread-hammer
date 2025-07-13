@@ -6,6 +6,7 @@
 #ifndef BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
 #define BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
 
+#include <cstdint>
 #include <random>
 #include <set>
 #include <utility>
@@ -31,13 +32,12 @@ class PatternAddressMapper {
   std::string instance_id;
 
   // a randomization engine
-  std::mt19937 gen;
+  static std::mt19937 gen;
 
  public:
   std::unique_ptr<CodeJitter> code_jitter;
 
   PatternAddressMapper();
-  PatternAddressMapper(uint64_t seed);
 
   // copy constructor
   PatternAddressMapper(const PatternAddressMapper& other);
@@ -57,6 +57,7 @@ class PatternAddressMapper {
   static void set_bank_counter(int counter) {
     bank_counter = counter;
   }
+  static void set_seed(uint64_t seed);
 
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
