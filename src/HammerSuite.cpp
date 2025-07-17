@@ -444,10 +444,17 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
   std::string path("bit_flips_search.csv");
   std::vector<FuzzReport> effective_reports = filter_and_analyze_flips(patterns, path);
 
+  std::vector<MappedPattern> effective_patterns;
   for(auto& report : effective_reports) {
     for(auto location_report : report.get_reports()) {
       for(auto& p : location_report.get_reports()) {
+        if(p.flips > 0) {
+          effective_patterns.push_back(p.pattern);
+        }
         p.pattern.mapper.bit_flips.clear();
+      }
+      if(!args.test_effective_patterns_random) {
+        continue;
       }
       //check from 1 to 6 threads
       for(int threads = 1; threads <= 8; threads++) {
@@ -493,8 +500,60 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
       }
     }
   }
+ 
+  if(!args.test_effective_patterns_random) {
+    return;
+  }
+  path = std::string("bit_flips_random_analysis.csv");
+  filter_and_analyze_flips(fuzz_reports, path);
+
+  if(effective_patterns.size() == 0 || !args.test_effective_patterns_combined) {
+    return;
+  }
+
+  fuzz_reports.clear();
+  for(int i = 0; i < effective_patterns.size(); i++) {
+    std::vector<MappedPattern> patterns_to_run;
+    std::set<size_t> banks;
+    for(int patterns = 1; patterns < 6; patterns++) {
+      int appended = 0;
+      int current = 0;
+      while(appended < patterns && current < effective_patterns.size()) {
+        if(!banks.contains(effective_patterns[current].mapper.bank_no)) {
+          patterns_to_run.push_back(effective_patterns[current]);
+          banks.insert(effective_patterns[current].mapper.bank_no);
+          effective_patterns[current].mapper.bit_flips.clear();
+          effective_patterns.erase(effective_patterns.begin() + current);
+          appended++;
+        }
+        current++;
+      }
+
+      if(appended < patterns) {
+        //restore the patterns we appended but were unable to execute to the original pattern list and skip the run.
+        for(int j = patterns_to_run.size(); j >= patterns; j--) {
+          effective_patterns.push_back(patterns_to_run[j]);
+        }
+        printf("we were unable to execute a pattern since we could not find enough additional patterns to run. (needed %d patterns but only found %d on different banks.)\n",
+               patterns, 
+               appended);
+
+        continue;
+      }
+
+      printf("starting an effective-pattern run for %d patterns.\n", appended);
+
+      std::vector<LocationReport> final_reports = fuzz_location(patterns_to_run, 1, args);
+      
+      FuzzReport fuzzing_run_report;
+      for(int j = 0; j < final_reports.size(); j++) {
+        fuzzing_run_report.add_report(final_reports[j]);
+      }
+      fuzz_reports.push_back(fuzzing_run_report);
+    }
+  } 
   
-  path = std::string("bit_flips_analysis.csv");
+  path = std::string("bit_flips_combined_analysis.csv");
   filter_and_analyze_flips(fuzz_reports, path);
 }
 
@@ -512,9 +571,7 @@ std::vector<FuzzReport> HammerSuite::auto_fuzz(Args args) {
          max_duration.count(),
          std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
 
-  if(args.test_effective_patterns) {
-    check_effective_patterns(reports, args);
-  }
+  check_effective_patterns(reports, args);
 
   return reports;
 }

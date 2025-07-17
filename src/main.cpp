@@ -89,8 +89,10 @@ Args parse_args(int argc, char* argv[]) {
     } else if((strcmp("-t", argv[i]) == 0 || strcmp("--threads", argv[i]) == 0) && i + 1 < argc) {
       args.threads = atoi(argv[i + 1]);
       i++;
-    } else if(strcmp("-f", argv[i]) == 0 || strcmp("--fuzz-effective", argv[i]) == 0) {
-      args.test_effective_patterns = true;
+    } else if(strcmp("-fr", argv[i]) == 0 || strcmp("--fuzz-random", argv[i]) == 0) {
+      args.test_effective_patterns_random = true;
+    } else if(strcmp("-fc", argv[i]) == 0 || strcmp("--fuzz-combined", argv[i]) == 0) {
+      args.test_effective_patterns_combined = true;
     } else if((strcmp("-s", argv[i]) == 0 || strcmp("--seed", argv[i]) == 0) && i + 1 < argc) {
       args.seed = atoi(argv[i + 1]);
       i++;
@@ -202,8 +204,11 @@ int main(int argc, char* argv[]) {
   }
   suite = new HammerSuite(alloc);
   
-  if(args.test_effective_patterns) {
-    printf("will test effective patterns in multiple fuzzing runs after we are finished.\n");
+  if(args.test_effective_patterns_random) {
+    printf("will test effective patterns in multiple fuzzing runs with random additional patterns after we are finished.\n");
+  }
+  if(args.test_effective_patterns_combined) {
+    printf("will test effective patterns in multiple fuzzing runs using all effective patterns after we are finished.\n");
   }
   printf("starting hammering run!\n");
   std::vector<FuzzReport> reports = suite->auto_fuzz(args);
