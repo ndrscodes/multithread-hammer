@@ -531,7 +531,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
 
       if(appended < patterns) {
         //restore the patterns we appended but were unable to execute to the original pattern list and skip the run.
-        for(int j = patterns_to_run.size(); j >= patterns; j--) {
+        for(int j = patterns_to_run.size() - 1; j >= patterns; j--) {
           effective_patterns.push_back(patterns_to_run[j]);
         }
         printf("we were unable to execute a pattern since we could not find enough additional patterns to run. (needed %d patterns but only found %d on different banks.)\n",
