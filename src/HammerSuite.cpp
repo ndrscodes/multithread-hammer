@@ -525,6 +525,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
           effective_patterns[current].mapper.bit_flips.clear();
           effective_patterns.erase(effective_patterns.begin() + current);
           appended++;
+          current--;
         }
         current++;
       }
