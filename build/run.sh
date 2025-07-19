@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DIR=$1
-FILES="bit_flips_search.csv bit_flips_analysis.csv main.log stdout.log"
+FILES="bit_flips_search.csv bit_flips_random_analysis.csv bit_flips_combined_analysis.csv main.log stdout.log"
 
 echo "$@"
 
