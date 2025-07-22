@@ -406,7 +406,14 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
           auto pat = patterns[p];
           std::set<size_t> banks;
           for(auto& flip : pat.pattern.mapper.bit_flips[loc]) {
-            exporter.export_flip(flip, r, loc, p, threads);
+            exporter.export_flip(
+              flip, 
+              r, 
+              loc, 
+              p, 
+              threads, 
+              pat.pattern.mapper.aggressor_to_addr.size(), 
+              pat.pattern.pattern.aggressors.size());
             banks.insert(flip.address.actual_bank());
             int z = flip.count_o2z_corruptions();
             int o = flip.count_z2o_corruptions();
@@ -515,7 +522,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
   for(int i = 0; i < effective_patterns.size(); i++) {
     std::vector<MappedPattern> patterns_to_run;
     std::set<size_t> banks;
-    for(int patterns = 1; patterns < 6; patterns++) {
+    for(int patterns = 1; patterns <= 6; patterns++) {
       int appended = 0;
       int current = 0;
       while(appended < patterns && current < effective_patterns.size()) {
@@ -523,9 +530,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
           patterns_to_run.push_back(effective_patterns[current]);
           banks.insert(effective_patterns[current].mapper.bank_no);
           effective_patterns[current].mapper.bit_flips.clear();
-          effective_patterns.erase(effective_patterns.begin() + current);
           appended++;
-          current--;
         }
         current++;
       }
@@ -552,6 +557,8 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
       }
       fuzz_reports.push_back(fuzzing_run_report);
     }
+
+    effective_patterns.erase(effective_patterns.begin());
   } 
   
   path = std::string("bit_flips_combined_analysis.csv");
