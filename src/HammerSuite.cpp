@@ -1,4 +1,5 @@
 #include "HammerSuite.hpp"
+#include <algorithm>
 #include <barrier>
 #include <cassert>
 #include <chrono>
@@ -280,6 +281,7 @@ MappedPattern HammerSuite::map_pattern(int bank, HammeringPattern &pattern, Fuzz
   MappedPattern p = {
     .pattern = pattern,
   };
+  std::shuffle(pattern.agg_access_patterns.begin(), pattern.agg_access_patterns.end(), engine);
   p.mapper.randomize_addresses(params, pattern.agg_access_patterns, true);
 
   return p;
@@ -522,8 +524,8 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
   for(int i = 0; i < effective_patterns.size(); i++) {
     std::vector<MappedPattern> patterns_to_run;
     std::set<size_t> banks;
+    int appended = 0;
     for(int patterns = 1; patterns <= 6; patterns++) {
-      int appended = 0;
       int current = 0;
       while(appended < patterns && current < effective_patterns.size()) {
         if(!banks.contains(effective_patterns[current].mapper.bank_no)) {
@@ -559,8 +561,9 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
     }
 
     effective_patterns.erase(effective_patterns.begin());
+    std::shuffle(effective_patterns.begin(), effective_patterns.end(), engine);
   } 
-  
+ 
   path = std::string("bit_flips_combined_analysis.csv");
   filter_and_analyze_flips(fuzz_reports, path);
 }
