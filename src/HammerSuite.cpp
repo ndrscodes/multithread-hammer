@@ -281,7 +281,6 @@ MappedPattern HammerSuite::map_pattern(int bank, HammeringPattern &pattern, Fuzz
   MappedPattern p = {
     .pattern = pattern,
   };
-  std::shuffle(pattern.agg_access_patterns.begin(), pattern.agg_access_patterns.end(), engine);
   p.mapper.randomize_addresses(params, pattern.agg_access_patterns, true);
 
   return p;
