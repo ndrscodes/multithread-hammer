@@ -1,5 +1,7 @@
 #include "CsvExporter.hpp"
 #include "BitFlip.hpp"
+#include <chrono>
+#include <cmath>
 #include <cstdio>
 
 CsvExporter::CsvExporter(std::string filepath) : path(filepath) {
@@ -14,14 +16,15 @@ CsvExporter::~CsvExporter() {
   fclose(logfile);
 }
 
-void CsvExporter::export_flip(BitFlip &flip, int run, int location, int pattern, int n_patterns, int n_aggs, int n_accesses) {
-  fprintf(logfile, "%d;%d;%d;%d;%d;%d;%lu;%lu;%lu;%lu;%lu\n",
+void CsvExporter::export_flip(BitFlip &flip, int run, int location, int pattern, int n_patterns, int n_aggs, int n_accesses, std::chrono::duration<float_t> duration) {
+  fprintf(logfile, "%d;%d;%d;%d;%d;%d;%lu;%lu;%lu;%lu;%lu;%lu\n",
           run,
           location,
           pattern,
           n_patterns,
           n_aggs,
           n_accesses,
+          std::chrono::duration_cast<std::chrono::microseconds>(duration).count(),
           flip.address.actual_bank(),
           flip.address.actual_row(),
           flip.address.actual_column(),

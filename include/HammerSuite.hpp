@@ -1,5 +1,6 @@
 #pragma once
 #include <barrier>
+#include <chrono>
 #include <cstdint>
 #include <map>
 #include <random>
@@ -47,7 +48,9 @@ private:
                  FuzzingParameterSet &params, 
                  std::barrier<> &start_barrier, 
                  RefreshTimer &timer,
-                 FENCE_TYPE fence_type);
+                 FENCE_TYPE fence_type,
+                 std::chrono::time_point<std::chrono::steady_clock> &start,
+                 std::chrono::time_point<std::chrono::steady_clock> &end);
   void check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args);
   Memory &memory;
   static std::mt19937 engine;
