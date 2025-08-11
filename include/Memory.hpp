@@ -1,13 +1,9 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
-#ifndef BLACKSMITH_SRC_MEMORY_H_
-#define BLACKSMITH_SRC_MEMORY_H_
+#ifndef ZENHAMMER_SRC_MEMORY_H_
+#define ZENHAMMER_SRC_MEMORY_H_
 
 #include <cstdint>
 #include <cstdlib>
+#include <random>
 #include <string>
 
 #include "DramAnalyzer.hpp"
@@ -32,36 +28,44 @@ class Memory {
   // whether this memory allocation is backed up by a superage
   const bool superpage;
 
-  uint64_t seed;
-
   size_t check_memory_internal(PatternAddressMapper &mapping, const volatile char *start,
                                const volatile char *end, bool reproducibility_mode, bool verbose);
 
- public:
+  DATA_PATTERN data_pattern;
 
+  uint32_t get_fill_value() const;
+
+  static void reseed_srand(uint64_t cur_page);
+
+  void initialize(DATA_PATTERN patt);
+
+  void* shadow_page;
+
+  static std::mt19937 gen;
+
+ public:
   // the flipped bits detected during the last call to check_memory
   std::vector<BitFlip> flipped_bits;
 
+  static void set_seed(uint64_t seed);
+
   explicit Memory(bool use_superpage);
-  explicit Memory(bool use_superpage, uint64_t seed);
 
   ~Memory();
 
   void allocate_memory(size_t mem_size);
 
-  void initialize(DATA_PATTERN data_pattern);
-
-  size_t check_memory(const volatile char *start, const volatile char *end);
-
   size_t check_memory(PatternAddressMapper &mapping, bool reproducibility_mode, bool verbose);
 
   [[nodiscard]] volatile char *get_starting_address() const;
-  // NOTE: This may be larger than DRAMConfig::memory_size() due to rounding up in allocate_memory().
-  [[nodiscard]] size_t get_allocation_size() const { return size; }
 
   std::string get_flipped_rows_text_repr();
 
-  void set_seed(uint64_t seed);
+  void check_memory_full();
+
+  uint64_t round_down_to_next_page_boundary(uint64_t address);
+
+  static size_t get_max_superpages();
 };
 
-#endif //BLACKSMITH_SRC_MEMORY_H_
+#endif //ZENHAMMER_SRC_MEMORY_H_

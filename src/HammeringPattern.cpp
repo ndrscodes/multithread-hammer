@@ -1,6 +1,5 @@
-#include <algorithm>
+#include "FuzzingParameterSet.hpp"
 #include "HammeringPattern.hpp"
-#include "Uuid.hpp"
 
 #ifdef ENABLE_JSON
 
@@ -28,28 +27,42 @@ void from_json(const nlohmann::json &j, HammeringPattern &p) {
   std::vector<AGGRESSOR_ID_TYPE> agg_ids;
   j.at("access_ids").get_to<std::vector<AGGRESSOR_ID_TYPE>>(agg_ids);
   p.aggressors = Aggressor::create_aggressors(agg_ids);
-
-  j.at("agg_access_patterns").get_to<std::vector<AggressorAccessPattern>>(p.agg_access_patterns);
-  j.at("address_mappings").get_to<std::vector<PatternAddressMapper>>(p.address_mappings);
+  if (j.contains("agg_access_patterns")) {
+    j.at("agg_access_patterns").get_to<std::vector<AggressorAccessPattern>>(p.agg_access_patterns);
+  } else {
+    Logger::log_error(format_string("from_json() failed: No agg_access_patterns found for pattern %s in JSON!", p.instance_id.c_str()));
+  }
+ j.at("address_mappings").get_to<std::vector<PatternAddressMapper>>(p.address_mappings);
 }
 
 #endif
 
-HammeringPattern::HammeringPattern(int base_period)
-    : instance_id(uuid::gen_uuid()),
+HammeringPattern::HammeringPattern(int base_period, std::mt19937 &gen)
+    : instance_id(uuid::gen_uuid(gen)),
       base_period(base_period),
       max_period(0),
       total_activations(0),
       num_refresh_intervals(0),
       is_location_dependent(false) {}
 
-HammeringPattern::HammeringPattern()
-    : instance_id(uuid::gen_uuid()),
+HammeringPattern::HammeringPattern(std::mt19937 &gen)
+    : instance_id(uuid::gen_uuid(gen)),
       base_period(0),
       max_period(0),
       total_activations(0),
       num_refresh_intervals(0),
       is_location_dependent(false) {}
+
+HammeringPattern::HammeringPattern()
+: base_period(0),
+      max_period(0),
+      total_activations(0),
+      num_refresh_intervals(0),
+      is_location_dependent(false) {
+        auto gen = std::mt19937(std::random_device()());
+        instance_id = uuid::gen_uuid(gen);
+}
+
 
 int HammeringPattern::get_num_digits(size_t x) {
   return (x < 10 ? 1 :
@@ -59,7 +72,7 @@ int HammeringPattern::get_num_digits(size_t x) {
              (x < 100000 ? 5 :
               (x < 1000000 ? 6 :
                (x < 10000000 ? 7 :
-              (x < 100000000 ? 8 :
+                (x < 100000000 ? 8 :
                  (x < 1000000000 ? 9 : 10)))))))));
 }
 
@@ -72,7 +85,7 @@ std::string HammeringPattern::get_pattern_text_repr() {
   auto dwidth = (agg_access_patterns.size() > 2) ? get_num_digits(aggressors.size()) : 2;
   for (size_t i = 0; i < aggressors.size(); ++i) {
     // add a new line after each base period to make it easier to check a pattern's correctness
-    if ((i%base_period)==0 && i > 0) ss << std::endl;
+    if ((i%base_period)==0 && i > 0) ss << "\n";
     ss << std::setfill('0') << std::setw(dwidth) << aggressors.at(i).id << " ";
   }
   return ss.str();
@@ -83,7 +96,7 @@ std::string HammeringPattern::get_agg_access_pairs_text_repr() {
   auto cnt = 0;
   for (const auto &agg_acc_pair : agg_access_patterns) {
     // add a new line after each three aggressor access patterns to avoid unintended text wrapping in terminal
-    if (cnt > 0 && cnt%3==0) ss << std::endl;
+    if (cnt > 0 && cnt%3==0) ss << "\n";
     ss << std::setw(30) << std::setfill(' ') << std::left << agg_acc_pair.to_string();
     cnt++;
   }
@@ -122,43 +135,4 @@ void HammeringPattern::remove_mappings_without_bitflips() {
       it++;
     }
   }
-}
-
-const std::vector<size_t>& HammeringPattern::get_tuple_start_indices() const {
-  if (tuple_start_indices.empty()) {
-    // Generate this first.
-    for (const auto& tuple : agg_access_patterns) {
-      auto first_start = tuple.start_offset;
-      auto curr_start = first_start;
-      while (curr_start < aggressors.size()) {
-        // The "frequency" is actually the period.
-        tuple_start_indices.push_back(curr_start);
-        curr_start += tuple.frequency;
-      }
-    }
-    std::sort(tuple_start_indices.begin(), tuple_start_indices.end());
-  }
-
-  return tuple_start_indices;
-}
-
-const std::vector<size_t>& HammeringPattern::get_tuple_iteration_start_indices() const {
-  if (tuple_iteration_start_indices.empty()) {
-    // Generate this first.
-    for (const auto& tuple : agg_access_patterns) {
-      auto first_start = tuple.start_offset;
-      auto curr_start = first_start;
-      while (curr_start < aggressors.size()) {
-        for (size_t iter = 0; iter < (size_t)tuple.amplitude; iter++) {
-          auto start_index = curr_start + iter * tuple.aggressors.size();
-          tuple_iteration_start_indices.push_back(start_index);
-        }
-        // The "frequency" is actually the period.
-        curr_start += tuple.frequency;
-      }
-    }
-    std::sort(tuple_iteration_start_indices.begin(), tuple_iteration_start_indices.end());
-  }
-
-  return tuple_iteration_start_indices;
 }

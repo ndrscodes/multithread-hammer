@@ -1,11 +1,7 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
+#ifndef ZENHAMMER_INCLUDE_PATTERNADDRESSMAPPER_H_
+#define ZENHAMMER_INCLUDE_PATTERNADDRESSMAPPER_H_
 
-#ifndef BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
-#define BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
-
+#include <cstddef>
 #include <cstdint>
 #include <random>
 #include <set>
@@ -21,20 +17,26 @@
 #include "BitFlip.hpp"
 #include "FuzzingParameterSet.hpp"
 #include "CodeJitter.hpp"
-
-class HammeringPattern;
+#include "CustomRandom.hpp"
 
 class PatternAddressMapper {
  private:
-  std::unordered_set<volatile char *> victim_rows;
+  void export_pattern_internal(std::vector<Aggressor> &aggressors,
+                               int base_period,
+                               std::vector<volatile char *> &addresses,
+                               std::vector<int> &rows);
+
+  std::vector<DRAMAddr> victim_rows;
+
+  CustomRandom cr;
 
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
-
-  // a randomization engine
   static std::mt19937 gen;
 
- public:
+public:
+  static void set_seed(uint64_t seed);
+  static std::vector<volatile char *> interleave(std::vector<std::vector<volatile char *>> &patterns, bool single_pair_per_iter, size_t distance);
   std::unique_ptr<CodeJitter> code_jitter;
 
   PatternAddressMapper();
@@ -48,16 +50,16 @@ class PatternAddressMapper {
   // information about the mapping (required for determining rows not belonging to this mapping)
   size_t min_row = 0;
   size_t max_row = 0;
-  int bank_no = 0;
+
+  static void set_bank_counter(size_t bank);
 
   // a global counter that makes sure that we test patterns on all banks equally often
   // it is incremented for each mapping and reset to 0 once we tested all banks (depending on num_probes_per_pattern
   // this may happen after we tested more than one pattern)
-  static int bank_counter;
-  static void set_bank_counter(int counter) {
-    bank_counter = counter;
-  }
-  static void set_seed(uint64_t seed);
+  // static size_t sc_counter;
+  // static size_t bank_counter;
+  // static size_t bankgroup_counter;
+  static DRAMAddr pattern_start_row;
 
   // a mapping from aggressors included in this pattern to memory addresses (DRAMAddr)
   std::unordered_map<AGGRESSOR_ID_TYPE, DRAMAddr> aggressor_to_addr;
@@ -77,23 +79,15 @@ class PatternAddressMapper {
 
   void remap_aggressors(DRAMAddr &new_location);
 
-  static std::vector<volatile char*> interleave(std::vector<std::vector<volatile char *>> &patterns, bool single_pair_per_iter, size_t distance);
-  std::vector<volatile char*> export_pattern_with_fence_none(const HammeringPattern& pattern);
-  std::vector<volatile char*> export_pattern_with_fence_all(const HammeringPattern& pattern);
-  std::vector<volatile char*> export_pattern_with_fence_between_tuples(const HammeringPattern& pattern);
-  std::vector<volatile char*> export_pattern_with_fence_between_tuple_iterations(const HammeringPattern& pattern);
-  std::vector<volatile char*> export_pattern_with_fence_every_nth_access(const HammeringPattern& pattern, int n);
-  std::vector<volatile char*> export_pattern_with_fence_per_base_period(const HammeringPattern& pattern, int fences_per_base_period);
-
-  std::vector<volatile char*> export_pattern(const HammeringPattern& pattern, SCHEDULING_POLICY scheduling_policy);
+  void export_pattern(std::vector<Aggressor> &aggressors, int base_period, std::vector<volatile char *> &addresses);
 
   [[nodiscard]] const std::string &get_instance_id() const;
 
   std::string &get_instance_id();
 
-  [[nodiscard]] const std::unordered_set<volatile char *> & get_victim_rows() const;
+  void export_pattern(std::vector<Aggressor> &aggressors, size_t base_period, int *rows, size_t max_rows);
 
-  std::vector<volatile char *> get_random_nonaccessed_rows(int row_upper_bound);
+  [[nodiscard]] const std::vector<DRAMAddr> & get_victim_rows() const;
 
   void determine_victims(const std::vector<AggressorAccessPattern> &agg_access_patterns);
 
@@ -101,7 +95,7 @@ class PatternAddressMapper {
 
   [[nodiscard]] CodeJitter & get_code_jitter() const;
 
-  void compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns, int &agg_intra_distance,
+  [[maybe_unused]] void compute_mapping_stats(std::vector<AggressorAccessPattern> &agg_access_patterns, int &agg_intra_distance,
                              int &agg_inter_distance, bool uses_seq_addresses);
 
   void shift_mapping(int rows, const std::unordered_set<AggressorAccessPattern> &aggs_to_move);
@@ -117,4 +111,4 @@ void from_json(const nlohmann::json &j, PatternAddressMapper &p);
 
 #endif
 
-#endif //BLACKSMITH_INCLUDE_PATTERNADDRESSMAPPER_H_
+#endif //ZENHAMMER_INCLUDE_PATTERNADDRESSMAPPER_H_

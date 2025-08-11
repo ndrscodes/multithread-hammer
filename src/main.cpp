@@ -17,27 +17,6 @@
 #include "SimplePatternBuilder.hpp"
 #include <sys/resource.h>
 
-SCHEDULING_POLICY find_policy(std::string policy) {
-  if("pair" == policy) {
-    return SCHEDULING_POLICY::PAIR;
-  } else if("full" == policy) {
-    return SCHEDULING_POLICY::FULL;
-  } else if("halfbase" == policy) {
-    return SCHEDULING_POLICY::HALF_BASE_PERIOD;
-  } else if("base" == policy) {
-    return SCHEDULING_POLICY::BASE_PERIOD;
-  } else if("repeat" == policy) {
-    return SCHEDULING_POLICY::REPETITON;
-  } else if("default" == policy) {
-    return SCHEDULING_POLICY::DEFAULT;
-  } else if("none" == policy) {
-    return SCHEDULING_POLICY::NONE;
-  }
-  
-  printf("unknown scheduling policy \"%s\"\n", policy.c_str());
-  exit(EXIT_FAILURE);
-}
-
 FLUSHING_STRATEGY find_flushing_strategy(std::string strategy) {
   if("latest" == strategy) {
     return FLUSHING_STRATEGY::LATEST_POSSIBLE;
@@ -98,30 +77,6 @@ Args parse_args(int argc, char* argv[]) {
       i++;
     } else if(strcmp("-i", argv[i]) == 0 || strcmp("--interleaved", argv[i]) == 0) {
       args.interleaved = true;
-    } else if(strcmp("--fence-type", argv[i]) == 0 && i + 1 < argc) {
-      if(strcmp("lfence", argv[i + 1]) == 0) {
-        args.fence_type = FENCE_TYPE::LFENCE;
-      } else if(strcmp("sfence", argv[i + 1]) == 0) {
-        args.fence_type = FENCE_TYPE::SFENCE;
-      } else if(strcmp("mfence", argv[i + 1]) == 0) {
-        args.fence_type = FENCE_TYPE::MFENCE;
-      } else {
-        printf("unknown fence type \"%s\"\n", argv[i + 1]);
-        exit(EXIT_FAILURE);
-      }
-      i++;
-    } else if(strcmp("--scheduling", argv[i]) == 0 && i + 1 < argc) {
-      std::string str(argv[i + 1]);
-      int idx = str.find(",");
-      if(idx != std::string::npos) {
-        args.scheduling_policy_first_thread = find_policy(str.substr(0, idx));
-        args.scheduling_policy_other_threads = find_policy(str.substr(idx + 1));
-      } else {
-        SCHEDULING_POLICY policy = find_policy(str);
-        args.scheduling_policy_first_thread = policy;
-        args.scheduling_policy_other_threads = policy;
-      }
-      i++;
     } else if(strcmp("--simple", argv[i]) == 0 && i + 1 < argc) {
       std::string str(argv[i + 1]);
       int idx = str.find(",");
@@ -170,6 +125,7 @@ int main(int argc, char* argv[]) {
   if (ret!=0) printf("Instruction setpriority failed.\n");
   
   DRAMConfig::select_config(Microarchitecture::AMD_ZEN_3, 1, 4, 4, false);
+  DRAMAddr::initialize_configs();
 
   Args args = parse_args(argc, argv);
 
@@ -184,17 +140,13 @@ int main(int argc, char* argv[]) {
   }
   printf("creating allocation...\n");
   alloc.allocate_memory(DRAMConfig::get().memory_size());
-  printf("allocated %lu bytes of memory.\n", alloc.get_allocation_size());
-  DRAMAddr::initialize_mapping(0, alloc.get_starting_address());
+  DRAMAddr::initialize(alloc.get_starting_address(), 2, 8, 4, false);
 
   printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
   printf("initialized location parameter to %hu.\n", args.locations);
   printf("initialized threads parameter to %hu\n", args.threads);
-  printf("initialized scheduling policy for first thread to %s\n", to_string(args.scheduling_policy_first_thread).c_str());
-  printf("initialized scheduling policy for other threads to %s\n", to_string(args.scheduling_policy_other_threads).c_str());
   printf("initialized simple pattern mode for first thread to %b\n", args.simple_patterns_first_thread);
   printf("initialized simple pattern mode for other threads to %b\n", args.simple_patterns_other_threads);
-  printf("initialized fencing strategy to %s\n", to_string(args.fence_type).c_str());
   HammerSuite *suite;
   if(args.interleaved) {
     printf("running in interleaved mode, just a single thread will be used.\n");
@@ -212,8 +164,7 @@ int main(int argc, char* argv[]) {
   }
   printf("starting hammering run!\n");
   std::vector<FuzzReport> reports = suite->auto_fuzz(args);
-  size_t full_check = alloc.check_memory(alloc.get_starting_address(), alloc.get_starting_address() + alloc.get_allocation_size());
-  printf("full check found %lu flips.\n", full_check);
+  alloc.check_memory_full();
   Logger::close();
   delete suite;
 }

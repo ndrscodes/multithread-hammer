@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
 #ifndef UUID
 #define UUID
 
@@ -10,12 +5,10 @@
 #include <sstream>
 
 namespace uuid {
-static std::random_device rd; /* NOLINT */
-static std::mt19937 gen(rd()); /* NOLINT */
 static std::uniform_int_distribution<> dis(0, 15); /* NOLINT */
 static std::uniform_int_distribution<> dis2(8, 11); /* NOLINT */
 
-static std::string gen_uuid() {
+static std::string gen_uuid(std::mt19937 &gen) {
   std::stringstream ss;
   int i;
   ss << std::hex;

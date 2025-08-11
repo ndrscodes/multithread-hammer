@@ -25,6 +25,8 @@ add_library(
   RandomPatternBuilder.cpp
   SimplePatternBuilder.cpp
   CsvExporter.cpp
+  Pagemap.cpp
+  CustomRandom.cpp
 )
 
 target_include_directories(src PUBLIC

@@ -1,14 +1,13 @@
 #include "Logger.hpp"
+
 #include <iostream>
 #include <GlobalDefines.hpp>
-#include <mutex>
+#include <filesystem>
 
 // initialize the singleton instance
 Logger Logger::instance; /* NOLINT */
 
 Logger::Logger() = default;
-
-std::mutex mutex;
 
 void Logger::initialize() {
   instance.logfile = std::ofstream();
@@ -26,38 +25,44 @@ void Logger::close() {
 }
 
 void Logger::log_info(const std::string &message, bool newline) {
-  mutex.lock();
   instance.logfile << FC_CYAN "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
-  mutex.unlock();
+  if (newline) instance.logfile
+#if (DEBUG==1)
+    << std::endl;
+#else
+    << "\n";
+#endif
 }
 
 void Logger::log_highlight(const std::string &message, bool newline) {
-  mutex.lock();
   instance.logfile << FC_MAGENTA << FF_BOLD << "[+] " << message;
   instance.logfile << F_RESET;
   if (newline) instance.logfile << "\n";
-  mutex.unlock();
 }
 
 void Logger::log_error(const std::string &message, bool newline) {
-  mutex.lock();
   instance.logfile << FC_RED "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
-  mutex.unlock();
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_data(const std::string &message, bool newline) {
-  mutex.lock();
   instance.logfile << message;
-  if (newline) instance.logfile << "\n";
-  mutex.unlock();
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_analysis_stage(const std::string &message, bool newline) {
-  mutex.lock();
   std::stringstream ss;
   ss << FC_CYAN_BRIGHT "████  " << message << "  ";
   // this makes sure that all log analysis stage messages have the same length
@@ -65,14 +70,36 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
   while (remaining_chars--) ss << "█";
   instance.logfile << ss.str();
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
-  mutex.unlock();
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
-void Logger::log_debug(const std::string &message, bool newline) {
-#ifdef DEBUG
-  instance.logfile << FC_YELLOW "[DEBUG] " << message;
+void Logger::log_debug(const std::string &message, bool newline,
+                       const std::experimental::source_location location) {
+#if (DEBUG==1)
+  std::filesystem::path p(location.file_name());
+  instance.logfile << FC_YELLOW << "[DEBUG|"
+    << std::string(p.stem()) << std::string(p.extension()) << ":"
+    << location.line() << "#"
+    << location.function_name() << "] " << message;
   instance.logfile << F_RESET;
+  if (newline)
+    instance.logfile << std::endl;
+#else
+  // this is just to ignore complaints of the compiler about unused params
+  std::ignore = location;
+  std::ignore = message;
+  std::ignore = newline;
+#endif
+}
+
+void Logger::log_debug_data(const std::string &message, bool newline) {
+#if (DEBUG==1)
+  instance.logfile << FC_YELLOW << message << F_RESET;
   if (newline) instance.logfile << std::endl;
 #else
   // this is just to ignore complaints of the compiler about unused params
@@ -100,36 +127,46 @@ void Logger::log_timestamp() {
   log_info(ss.str());
 }
 
-void Logger::log_bitflip(volatile char *flipped_address, uint64_t bank_no, uint64_t row_no, unsigned char actual_value,
-                         unsigned char expected_value, unsigned long timestamp, bool newline) {
-  mutex.lock();
+void Logger::log_bitflip(const DRAMAddr& addr, unsigned char actual_value,
+                         unsigned char expected_value) {
+  auto* virt = addr.to_virt();
+  auto timestamp = format_timestamp(time(nullptr) - instance.timestamp_start);
   instance.logfile << FC_GREEN
-                   << "[!] Flip " << std::hex << (void *) flipped_address << ", "
-                   << std::dec << "bank " << bank_no << ", "
-                   << std::dec << "row " << row_no << ", "
-                   << "page offset: " << (uint64_t)flipped_address%(uint64_t)getpagesize() << ", "
-                   << "byte offset: " << (uint64_t)flipped_address%(uint64_t)8 << ", "
+                   << "[!] Flip " << std::hex << virt << " "
+                   << addr.to_string_compact().c_str()
+                   << std::dec << ", row " << addr.get_row() << ", "
+                   << "page offset: " << (uint64_t)virt % getpagesize() << ", "
+                   << "byte offset: " << (uint64_t)virt % (uint64_t)8 << ", "
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
-                   << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
+                   << std::dec << "detected after " << timestamp << ".";
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
-  mutex.unlock();
+#if (DEBUG==1)
+  instance.logfile << std::endl;
+#else
+  instance.logfile << "\n";
+#endif
 }
 
 void Logger::log_success(const std::string &message, bool newline) {
-  mutex.lock();
   instance.logfile << FC_GREEN << "[!] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
-  mutex.unlock();
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_failure(const std::string &message, bool newline) {
-  mutex.lock();
   instance.logfile << FC_RED_BRIGHT << "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
-  mutex.unlock();
+  if (newline) instance.logfile
+#if (DEBUG==1)
+  << std::endl;
+#else
+  << "\n";
+#endif
 }
 
 void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_seconds) {
@@ -151,13 +188,13 @@ void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_
 void Logger::log_global_defines() {
   Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
   std::stringstream ss;
-  ss << "DRAMA_ROUNDS: " << DRAMA_ROUNDS << "\n"
-     << "CACHELINE_SIZE: " << CACHELINE_SIZE << "\n"
-     << "HAMMER_ROUNDS: " << HAMMER_ROUNDS << "\n"
-     << "NUM_TARGETS: " << NUM_TARGETS << "\n"
-     << "MAX_ROWS: " << MAX_ROWS << "\n"
-     << "DIMM: " << DIMM << "\n"
-     << "CHANNEL: " << CHANNEL << "\n"
-     << "PAGE_SIZE: " << getpagesize() << std::endl;
+  ss << "HAMMER_ROUNDS: " << (1000000) << "\n"
+     << "THRESH: " << BK_CONF_THRESH << "\n"
+     << "NUM_BANKS: " << NUM_BANKS << "\n"
+     << "NUM_BANKGROUPS: " << NUM_BANKGROUPS << "\n"
+     << "NUM_BANKS_PER_BG: " << NUM_BANKS_PER_BG << "\n"
+     << "NUM_BANKS: " << NUM_BANKS << "\n"
+     << "MEM_SIZE: " << MEM_SIZE << "\n"
+     << "PAGE_SIZE: " << getpagesize() << "\n";
   Logger::log_data(ss.str());
 }

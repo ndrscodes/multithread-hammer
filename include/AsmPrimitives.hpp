@@ -1,8 +1,3 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
 #ifndef UTILS
 #define UTILS
 

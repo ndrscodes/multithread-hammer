@@ -62,12 +62,13 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
   std::vector<std::vector<volatile char *>> exported_patterns;
   bool first = true;
   for(auto pattern : patterns) {
-    exported_patterns.push_back(
-      pattern.mapper.export_pattern(
-        pattern.pattern, 
-        first ? args.scheduling_policy_first_thread : args.scheduling_policy_other_threads
-      )
+    std::vector<volatile char *> exported;
+    pattern.mapper.export_pattern(
+      pattern.pattern.aggressors,
+      pattern.params.get_base_period(),
+      exported
     );
+    exported_patterns.push_back(exported);
     first = false;
   } 
 
@@ -88,13 +89,25 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
       first_addr = DRAMAddr((void *)ptr);
     }
     printf("starting interleaved pattern on main bank %lu with starting address %s.\n",
-           first_addr.actual_bank(), 
+           first_addr.get_bank(), 
            first_addr.to_string().c_str());
 
     std::vector<volatile char *> non_accessed_rows;
     for(auto& pattern : patterns) {
-      auto rows = pattern.mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
-      non_accessed_rows.insert(non_accessed_rows.end(), rows.begin(), rows.end());
+      auto any_aggressor_row = pattern.mapper.aggressor_to_addr[pattern.pattern.aggressors[0].id];
+      std::vector<volatile char*> sync_rows;
+      auto mr = pattern.mapper.max_row;
+      auto da = DRAMAddr(any_aggressor_row);
+      da.add_inplace(0, 1, 0, 0, 0);
+      da.set_row(mr);
+      // std::cout << "sync_rows:\n";
+      for (size_t i = 1; i <= 32; ++i) {
+        da.add_inplace(0, 0, 0, i, 0);
+        sync_rows.push_back((volatile char*)da.to_virt());
+        // std::cout << da.to_string() << "\n";
+      }
+      // std::cout << std::endl;
+      non_accessed_rows.insert(non_accessed_rows.end(), sync_rows.begin(), sync_rows.end());
     }
 
     std::barrier fake_barrier(1);
@@ -108,7 +121,6 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
       patterns[0].params, 
       fake_barrier,
       timer,
-      args.fence_type,
       starts[0],
       ends[0]
     );
@@ -119,7 +131,20 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
     std::barrier barrier(patterns.size());
 
     for(int i = 0; i < exported_patterns.size(); i++) {
-      non_accessed_rows[i] = patterns[i].mapper.get_random_nonaccessed_rows(DRAMConfig::get().rows());
+      auto any_aggressor_row = patterns[i].mapper.aggressor_to_addr[patterns[i].pattern.aggressors[0].id];
+      std::vector<volatile char*> sync_rows;
+      auto mr = patterns[i].mapper.max_row;
+      auto da = DRAMAddr(any_aggressor_row);
+      da.add_inplace(0, 1, 0, 0, 0);
+      da.set_row(mr);
+      // std::cout << "sync_rows:\n";
+      for (size_t i = 1; i <= 32; ++i) {
+        da.add_inplace(0, 0, 0, i, 0);
+        sync_rows.push_back((volatile char*)da.to_virt());
+        // std::cout << da.to_string() << "\n";
+      }
+      // std::cout << std::endl;
+      non_accessed_rows[i] = sync_rows;
       DRAMAddr first_addr(0, 0, 0);
       for(auto ptr : exported_patterns[i]) {
         if(ptr == nullptr) {
@@ -128,8 +153,9 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
         first_addr = DRAMAddr((void *)ptr);
       }
       printf("starting thread on bank %lu with first address being %s.\n", 
-             first_addr.actual_bank(),
+             first_addr.get_bank(),
              first_addr.to_string().c_str());
+
       threads[i] = std::thread(
         &HammerSuite::hammer_fn, 
         this, 
@@ -140,7 +166,6 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
         std::ref(patterns[i].params),
         std::ref(barrier), 
         std::ref(timer),
-        args.fence_type,
         std::ref(starts[i]),
         std::ref(ends[i])
       );
@@ -176,11 +201,13 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
       printf("SUCCESS: Managed to flip %lu bits on mapping %d. The bank on which this happened was %lu.\n", 
              report.flips, 
              i, 
-             DRAMAddr((void *)*patterns[i].mapper.get_victim_rows().begin()).actual_bank());
+             patterns[i].mapper.get_victim_rows().begin()->get_bank());
     }
 
     locationReport.add_report(report);
   }
+
+  printf("took: %lu us\n", std::chrono::duration_cast<std::chrono::microseconds>(locationReport.duration()).count());
 
   if(total_flips) {
     printf("[SUCCESS] flipped %d bits on this pattern combination.\n", total_flips);
@@ -347,7 +374,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
             thread_aggressor_nums[threads - 1] += loc_reports[k].pattern.pattern.aggressors.size();
             thread_flips[threads - 1] += loc_reports[k].flips;
             
-            size_t bank_no = loc_reports[k].pattern.mapper.bank_no % DRAMConfig::get().banks();
+            size_t bank_no = loc_reports[k].pattern.mapper.pattern_start_row.get_bank();
             if(!bank_flip_counts.contains(bank_no)) {
               bank_flip_counts[bank_no] = 0;
             }
@@ -426,7 +453,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
               pat.pattern.mapper.aggressor_to_addr.size(), 
               pat.pattern.pattern.aggressors.size(),
               pat.duration);
-            banks.insert(flip.address.actual_bank());
+            banks.insert(flip.address.get_bank());
             int z = flip.count_o2z_corruptions();
             int o = flip.count_z2o_corruptions();
             zero_to_one += o;
@@ -483,7 +510,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
         std::vector<PatternReport> pattern_reports = location_report.get_reports();
         for(int i = 0; i < pattern_reports.size() && i < threads; i++) {
           patterns.push_back(pattern_reports[i].pattern);
-          banks.insert(pattern_reports[i].pattern.mapper.bank_no);
+          banks.insert(pattern_reports[i].pattern.mapper.pattern_start_row.get_bank());
         }
 
         while(patterns.size() < threads) {
@@ -491,7 +518,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
                  threads,
                  patterns.size());
           
-          size_t first_bank = patterns[0].mapper.bank_no;
+          size_t first_bank = patterns[0].mapper.pattern_start_row.get_bank();
           while(banks.contains(first_bank)) {
             first_bank = first_bank + 1 % DRAMConfig::get().banks();
           }
@@ -538,9 +565,9 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
     for(int patterns = 1; patterns <= 6; patterns++) {
       int current = 0;
       while(appended < patterns && current < effective_patterns.size()) {
-        if(!banks.contains(effective_patterns[current].mapper.bank_no)) {
+        if(!banks.contains(effective_patterns[current].mapper.pattern_start_row.get_bank())) {
           patterns_to_run.push_back(effective_patterns[current]);
-          banks.insert(effective_patterns[current].mapper.bank_no);
+          banks.insert(effective_patterns[current].mapper.pattern_start_row.get_bank());
           effective_patterns[current].mapper.bit_flips.clear();
           appended++;
         }
@@ -604,7 +631,6 @@ void HammerSuite::hammer_fn(size_t id,
                             FuzzingParameterSet &params,
                             std::barrier<> &start_barrier, 
                             RefreshTimer &timer,
-                            FENCE_TYPE fence_type,
                             std::chrono::time_point<std::chrono::steady_clock> &start,
                             std::chrono::time_point<std::chrono::steady_clock> &end) {
 #define USE_ZEN_JITTER 1
@@ -612,9 +638,9 @@ void HammerSuite::hammer_fn(size_t id,
 #if USE_ZEN_JITTER
   jitter.jit_strict(params.flushing_strategy, 
                     params.fencing_strategy, 
+                    params.get_hammering_total_num_activations(),
                     pattern, 
-                    fence_type, 
-                    params.get_hammering_total_num_activations());
+                    non_accessed_rows); 
 #else 
   Jitter jitter(timer.get_refresh_threshold());
   HammerFunc fn = jitter.jit(pattern, non_accessed_rows, params.get_hammering_total_num_activations(), false);

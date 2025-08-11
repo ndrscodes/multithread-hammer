@@ -1,67 +1,147 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
 #ifndef DRAMADDR
 #define DRAMADDR
 
+#include <cstdint>
+#include <map>
 #include <string>
-#include "DRAMConfig.hpp"
+#include <vector>
 
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
 #endif
 
+// no. of channels on the system (NOT subchannels per DIMM, we always assume 2)
+#define CHANS(x) ((x) << (4UL * 4UL))
+#define CHANS_INV(x) (((x) >> (4UL * 4UL)) && 0b11111)
+
+// no. of DIMMs
+#define DIMMS(x) ((x) << (4UL * 3UL))
+#define DIMMS_INV(x) (((x) >> (4UL * 3UL)) && 0b11111)
+
+// no. of ranks
+#define RANKS(x) ((x) << (4UL * 2UL))
+#define RANKS_INV(x) (((x) >> (4UL * 2UL)) && 0b11111)
+
+// no. of bankgroups
+#define BANKGROUPS(x) ((x) << (4UL * 1UL))
+#define BANKGROUPS_INV(x) (((x) >> (4UL * 1UL)) && 0b11111)
+
+// no. of banks per bankgroup
+#define BANKS(x) ((x) << (4UL * 0UL))
+#define BANKS_INV(x) (((x) >> (4UL * 0UL)) && 0b11111)
+
+// Samsung row swizzling
+#define SAMSUNG(x) ((x) << (4UL * 5UL))
+#define SAMSUNG_INV(x) (((x) >> (4UL * 5UL)) & 0b1)
+
+typedef uint64_t mem_config_t;
+
+struct MemConfiguration {
+  size_t IDENTIFIER;
+  size_t SC_SHIFT;
+  size_t SC_MASK;
+  size_t RK_SHIFT;
+  size_t RK_MASK;
+  size_t BG_SHIFT;
+  size_t BG_MASK;
+  size_t BK_SHIFT;
+  size_t BK_MASK;
+  size_t ROW_SHIFT;
+  size_t ROW_MASK;
+  size_t COL_SHIFT;
+  size_t COL_MASK;
+  // to simplify our setup, as we have a single superpage only, we cut-off the
+  // higher bits of the FNs s.t. we stay within [start,start+HUGEPAGE_SZ]
+  size_t DRAM_MTX[30];
+  size_t ADDR_MTX[30];
+};
 
 class DRAMAddr {
+ private:
+  static std::map<size_t, MemConfiguration> Configs;
+
+  static uint64_t base_msb;
+
+  size_t subchan{};
+  size_t rank{};
+  size_t bankgroup{};
+  size_t bank{};
+  size_t row{};
+  size_t col{};
+
  public:
-  // These can overflow and underflow, and should be interpreted modulo {bank, row, col} count.
-  // Example: If there are 16 banks, bank = 18 means actual bank 2 (the third bank).
-  size_t bank { 0 };
-  size_t row { 0 };
-  size_t col { 0 };
-  int mapping_id { 0 };
 
-  [[nodiscard]] size_t actual_bank() const { return bank % DRAMConfig::get().banks(); }
-  [[nodiscard]] size_t actual_row() const { return row % DRAMConfig::get().rows(); }
-  [[nodiscard]] size_t actual_column() const { return col % DRAMConfig::get().columns(); }
-
-  // instance methods
-  DRAMAddr(size_t bk, size_t r, size_t c, int map_id = 0)
-    : bank(bk), row(r), col(c), mapping_id(map_id) {
-
-  }
-
-  explicit DRAMAddr(void *addr);
+  static MemConfiguration MemConfig;
+  /* constructor for backwards-compatibility */
+  DRAMAddr(size_t bk, size_t r, size_t c);
+  DRAMAddr(size_t sc, size_t bk, size_t r, size_t c);
+  DRAMAddr(size_t sc, size_t rk,  size_t bg, size_t bk, size_t r, size_t c);
 
   // must be DefaultConstructible for JSON (de-)serialization
-  DRAMAddr() = default;
+  DRAMAddr();
 
-  static void initialize_mapping(int mapping_id, volatile char *start_address);
-  static void initialize_bank_translation(int from_mapping_id, int to_mapping_id, std::vector<size_t> translation);
-  static size_t translate_bank(int from_mapping_id, int to_mapping_id, size_t bank);
+  static void initialize(volatile char *start_address, size_t num_ranks, size_t num_bankgroups, size_t num_banks, bool samsung_row_swizzling);
 
-  [[nodiscard]] std::string to_string() const;
+  static void set_base_msb(void *buff);
+
+  static void load_mem_config(mem_config_t cfg);
+
+  static void initialize_configs();
+
+  explicit DRAMAddr(void *vaddr);
+
+  [[gnu::unused]] std::string to_string();
+
   [[nodiscard]] std::string to_string_compact() const;
 
-  [[nodiscard]] void *to_virt() const;
+  void *to_virt() const;
 
-  [[nodiscard]] DRAMAddr add(size_t bank_increment, size_t row_increment, size_t column_increment) const;
+  void *to_phys() const;
+
+  void add_inplace(size_t sc_increment,
+                   size_t bg_increment,
+                   size_t bk_increment,
+                   size_t row_increment,
+                   size_t col_increment);
 
   void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
 
+  [[nodiscard]] DRAMAddr add(size_t sc_increment,
+                             size_t rk_increment,
+                             size_t bankgroup_increment,
+                             size_t bank_increment,
+                             size_t row_increment,
+                             size_t column_increment) const;
+
+  size_t get_subchan() const;
+  size_t get_bankgroup() const;
+  size_t get_rank() const;
+  size_t get_bank() const;
+  size_t get_row() const;  
+  size_t get_column() const;
+
+  static size_t get_row_to_row_offset() {
+    auto row_0_index = 29 - MemConfig.ROW_SHIFT;
+    return MemConfig.DRAM_MTX[row_0_index];
+  }
+
+  void set_row(size_t row_no);
+
+  void increment_all_common();
+
 #ifdef ENABLE_JSON
-  static nlohmann::json get_memcfg_json();
+  nlohmann::json get_memcfg_json();
+
+  friend void to_json(nlohmann::json &j, const DRAMAddr &p);
+
+  friend void from_json(const nlohmann::json &j, DRAMAddr &p);
 #endif
+
 };
 
 #ifdef ENABLE_JSON
-
 void to_json(nlohmann::json &j, const DRAMAddr &p);
-
 void from_json(const nlohmann::json &j, DRAMAddr &p);
-
 #endif
 
 #endif /* DRAMADDR */

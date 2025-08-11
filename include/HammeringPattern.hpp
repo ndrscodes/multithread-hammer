@@ -1,11 +1,9 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
 #ifndef HAMMERING_PATTERN
 #define HAMMERING_PATTERN
 
+#include <iostream>
+#include <random>
+#include <unordered_map>
 #include <vector>
 
 #ifdef ENABLE_JSON
@@ -13,15 +11,13 @@
 #endif
 
 #include "AggressorAccessPattern.hpp"
+#include "Range.hpp"
+#include "Uuid.hpp"
 #include "PatternAddressMapper.hpp"
 
 class HammeringPattern {
  private:
   static int get_num_digits(size_t x);
-
-  // These are generated on-the-fly (by get_tuple{,_iteration}_start_indices()) as soon as they are needed the first time.
-  mutable std::vector<size_t> tuple_start_indices;
-  mutable std::vector<size_t> tuple_iteration_start_indices;
 
  public:
   std::string instance_id;
@@ -53,7 +49,9 @@ class HammeringPattern {
 
   HammeringPattern();
 
-  explicit HammeringPattern(int base_period);
+  explicit HammeringPattern(std::mt19937 &gen);
+
+  HammeringPattern(int base_period, std::mt19937 &gen);
 
   std::string get_pattern_text_repr();
 
@@ -64,10 +62,6 @@ class HammeringPattern {
   PatternAddressMapper &get_most_effective_mapping();
 
   void remove_mappings_without_bitflips();
-
-  const std::vector<size_t>& get_tuple_start_indices() const;
-
-  const std::vector<size_t>& get_tuple_iteration_start_indices() const;
 };
 
 #ifdef ENABLE_JSON

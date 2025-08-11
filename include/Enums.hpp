@@ -1,19 +1,17 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
-#ifndef BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
-#define BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
+#ifndef ZENHAMMER_INCLUDE_UTILITIES_ENUMS_HPP_
+#define ZENHAMMER_INCLUDE_UTILITIES_ENUMS_HPP_
 
 #include <string>
 #include <vector>
+#include <random>
 
 enum class FLUSHING_STRATEGY : int {
   // flush an accessed aggressor as soon as it has been accessed (i.e., pairs are flushed in-between)
   EARLIEST_POSSIBLE = 1,
+  // access all aggressors one after another, then flush all aggressors
+  BATCHED = 2,
   // add the flush right before the next access of the aggressor
-  LATEST_POSSIBLE = 2
+  LATEST_POSSIBLE = 3
 };
 
 std::string to_string(FLUSHING_STRATEGY strategy);
@@ -35,26 +33,6 @@ void from_string(const std::string &strategy, FENCING_STRATEGY &dest);
 
 std::vector<std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY>> get_valid_strategies();
 
-[[maybe_unused]] std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair();
+[[maybe_unused]] std::pair<FLUSHING_STRATEGY, FENCING_STRATEGY> get_valid_strategy_pair(std::mt19937 &gen);
 
-enum class SCHEDULING_POLICY {
-  DEFAULT,
-  NONE,
-  FULL,
-  BASE_PERIOD,
-  HALF_BASE_PERIOD,
-  PAIR,
-  REPETITON
-};
-
-enum FENCE_TYPE {
-  NO_FENCE,
-  MFENCE,
-  LFENCE,
-  SFENCE,
-};
-
-std::string to_string(SCHEDULING_POLICY policy);
-std::string to_string(FENCE_TYPE type);
-
-#endif //BLACKSMITH_INCLUDE_UTILITIES_ENUMS_HPP_
+#endif //ZENHAMMER_INCLUDE_UTILITIES_ENUMS_HPP_

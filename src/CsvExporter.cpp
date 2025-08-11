@@ -25,9 +25,9 @@ void CsvExporter::export_flip(BitFlip &flip, int run, int location, int pattern,
           n_aggs,
           n_accesses,
           std::chrono::duration_cast<std::chrono::microseconds>(duration).count(),
-          flip.address.actual_bank(),
-          flip.address.actual_row(),
-          flip.address.actual_column(),
+          flip.address.get_bank(),
+          flip.address.get_row(),
+          flip.address.get_column(),
           flip.count_o2z_corruptions(),
           flip.count_z2o_corruptions());
 }

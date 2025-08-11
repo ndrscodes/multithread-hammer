@@ -1,55 +1,44 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
 #ifndef CODEJITTER
 #define CODEJITTER
 
+#include <unordered_map>
 #include <vector>
 
-#include "FuzzingParameterSet.hpp"
-#include "DRAMAddr.hpp"
 #include "Enums.hpp"
-#include "asmjit/core/jitruntime.h"
-#include "asmjit/core/logger.h"
-#include "asmjit/x86/x86assembler.h"
+#include "FuzzingParameterSet.hpp"
+
+#ifdef ENABLE_JITTING
+#include <asmjit/asmjit.h>
+#endif
 
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
 #endif
 
-// NOTE: The members of this struct should not be re-arranged, as they are written to from Assembly.
-struct RefSyncData {
-  // first sync: immediately after the function starts
-  uint32_t first_sync_act_count { 0 };
-  uint32_t first_sync_tsc_delta { 0 };
-  // second sync: REF-to-REF, after first sync
-  uint32_t second_sync_act_count { 0 };
-  uint32_t second_sync_tsc_delta { 0 };
-  // last sync: after configurable number of aggressors
-  uint32_t last_sync_act_count { 0 };
-  uint32_t last_sync_tsc_delta { 0 };
-};
-
-struct HammeringData {
-  uint64_t tsc_delta { 0 };
-  uint64_t total_acts { 0 };
+struct synchronization_stats {
+  // how often we accessed sync dummies
+  size_t num_sync_acts;
+  // how often we started the synchronization procedure
+  size_t num_sync_rounds;
 };
 
 class CodeJitter {
  private:
+#ifdef ENABLE_JITTING
   /// runtime for JIT code execution, can be reused by cleaning the function ptr (see cleanup method)
   asmjit::JitRuntime runtime;
 
   /// a logger that keeps track of the generated ASM instructions - useful for debugging
   asmjit::StringLogger *logger = nullptr;
+#endif
 
-  int (*fn)(HammeringData*) = nullptr;
-  size_t (*fn_ref_sync)(RefSyncData*) = nullptr;
+  const uint64_t REFRESH_THRESHOLD_CYCLES_LOW  = 500;
+  const uint64_t REFRESH_THRESHOLD_CYCLES_HIGH = 900;
+
+  /// a function pointer to a function that takes no input (void) and returns an integer
+  int (*fn)() = nullptr;
 
  public:
-  bool pattern_sync_each_ref;
 
   FLUSHING_STRATEGY flushing_strategy;
 
@@ -57,7 +46,9 @@ class CodeJitter {
 
   int total_activations;
 
-  int num_aggs_for_sync;
+  size_t sync_rows_idx = 0;
+
+  size_t sync_rows_size;
 
   /// constructor
   CodeJitter();
@@ -66,40 +57,40 @@ class CodeJitter {
   ~CodeJitter();
 
   /// generates the jitted function and assigns the function pointer fn to it
-  void jit_strict(
-    FLUSHING_STRATEGY flushing,
-    FENCING_STRATEGY fencing,
-    const std::vector<volatile char *> &aggressor_pairs,
-    FENCE_TYPE fence_type,
-    int total_num_activations
-  );
+  void jit_strict(FLUSHING_STRATEGY flushing,
+                  FENCING_STRATEGY fencing,
+                  int total_num_activations,
+                  const std::vector<volatile char *> &aggressor_pairs,
+                  const std::vector<volatile char *> &sync_rows);
 
   /// does the hammering if the function was previously created successfully, otherwise does nothing
-  int hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool verbose, bool print_act_data = false);
+  size_t hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool verbose);
 
   /// cleans this instance associated function pointer that points to the function that was jitted at runtime;
   /// cleaning up is required to release memory before jit_strict can be called again
   void cleanup();
 
-  void jit_ref_sync(
-    FLUSHING_STRATEGY flushing,
-    FENCING_STRATEGY fencing,
-    std::vector<volatile char*> const& aggressors,
-    DRAMAddr sync_ref_initial_aggr,
-    size_t sync_ref_threshold);
+  size_t get_next_sync_rows_idx();
 
-  size_t run_ref_sync(RefSyncData* ref_sync_data) {
-    if (fn_ref_sync == nullptr) {
-      Logger::log_error("Cannot run fn_ref_sync as it is NULL.");
-      exit(1);
-    }
-    return (*fn_ref_sync)(ref_sync_data);
-  }
+#ifdef ENABLE_JITTING
+  void sync_ref(const std::vector<volatile char *> &sync_rows,
+                asmjit::x86::Assembler &assembler,
+                size_t num_timed_accesses);
+#endif
+  void hammer_pattern_unjitted(FuzzingParameterSet &fuzzing_parameters,
+                               bool verbose,
+                               FLUSHING_STRATEGY flushing,
+                               FENCING_STRATEGY fencing,
+                               int total_num_activations,
+                               const std::vector<volatile char *> &aggressor_pairs,
+                               const std::vector<volatile char *> &sync_rows,
+                               size_t ref_threshold);
 
-  static void sync_ref(const std::vector<volatile char *> &aggressor_pairs, asmjit::x86::Assembler &assembler);
-  static void sync_ref_nonrepeating(DRAMAddr initial_aggressor, size_t sync_ref_threshold, asmjit::x86::Assembler &assembler);
+  void sync_ref_unjitted(const std::vector<volatile char *> &sync_rows,
+                         synchronization_stats &sync_stats,
+                         size_t ref_threshold, size_t sync_rounds_max) const;
 
-  static constexpr size_t SYNC_REF_NUM_AGGRS = 128;
+  [[maybe_unused]] static void wait_for_user_input();
 };
 
 #ifdef ENABLE_JSON

@@ -23,9 +23,6 @@ struct Args {
   bool test_effective_patterns_combined = false;
   uint64_t seed = 0;
   bool interleaved = false;
-  FENCE_TYPE fence_type = FENCE_TYPE::MFENCE;
-  SCHEDULING_POLICY scheduling_policy_first_thread = SCHEDULING_POLICY::DEFAULT;
-  SCHEDULING_POLICY scheduling_policy_other_threads = SCHEDULING_POLICY::DEFAULT;
   bool simple_patterns_first_thread = false;
   bool simple_patterns_other_threads = false;
   bool disable_fencing = false;
@@ -48,7 +45,6 @@ private:
                  FuzzingParameterSet &params, 
                  std::barrier<> &start_barrier, 
                  RefreshTimer &timer,
-                 FENCE_TYPE fence_type,
                  std::chrono::time_point<std::chrono::steady_clock> &start,
                  std::chrono::time_point<std::chrono::steady_clock> &end);
   void check_effective_patterns(std::vector<FuzzReport> &patterns, Args &args);

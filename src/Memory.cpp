@@ -1,101 +1,187 @@
 #include "Memory.hpp"
 
-#include <cassert>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <random>
 #include <sys/mman.h>
+#include <linux/mman.h>
+#include <iostream>
+#include <unordered_set>
+
+#include "Pagemap.hpp"
+#include <cassert>
+
+#define MMAP_PROT (PROT_READ | PROT_WRITE)
+#define MMAP_FLAGS (MAP_SHARED | MAP_ANONYMOUS | MAP_POPULATE | MAP_HUGETLB | MAP_HUGE_1GB)
+
+std::mt19937 Memory::gen = std::mt19937(std::random_device()());
+
+void Memory::set_seed(uint64_t seed) {
+  gen = std::mt19937(seed);
+  srand(seed);
+}
+
+size_t Memory::get_max_superpages() {
+  // try to allocate as many superpages as possible
+  system("sudo bash -c 'echo 32 > tee /proc/sys/vm/nr_hugepages'");
+
+  auto fp = popen("cat /proc/meminfo | grep HugePages_Total | tr -s ' ' | cut -d':' -f2 | xargs", "r");
+  if (fp == nullptr) {
+    Logger::log_error("Could not get the number of available superpages.");
+    exit(EXIT_FAILURE);
+  }
+
+  std::string sout;
+  if (fgets(sout.data(), 3, fp) != nullptr) {
+    auto n = static_cast<size_t>(strtoul(sout.c_str(), nullptr, 10));
+    Logger::log_info(format_string("Total #free superpages (HugePages_Total): %d", n));
+    if (pclose(fp) < 0) {
+      Logger::log_error("Closing popen file descriptor in get_max_superpages failed!");
+      exit(EXIT_FAILURE);
+    }
+    return n;
+  }
+
+  return 0;
+}
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
 void Memory::allocate_memory(size_t mem_size) {
   this->size = mem_size;
   volatile char *target = nullptr;
+  FILE *fp;
 
   if (superpage) {
-    // When allocating superpages, we need the allocation size to be a multiple of the superpage size.
-    Logger::log_data(format_string("Allocating %zu MB of memory...", size / MB(1)));
-    if (size % GB(1) != 0) {
-      // Round up to the next GB.
-      auto num_gbs = size / GB(1) + 1;
-      size = GB(num_gbs);
-      Logger::log_data(format_string("Rounding up allocation to %zu MB", size / MB(1)));
+    // allocate memory using super pages
+    fp = fopen(hugetlbfs_mountpoint.c_str(), "w+");
+    if (fp==nullptr) {
+      Logger::log_info(format_string("Could not mount superpage from %s. Error:", hugetlbfs_mountpoint.c_str()));
+      Logger::log_data(strerror(errno));
+      exit(EXIT_FAILURE);
     }
-    auto mapped_target = mmap(nullptr, size, PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | (30UL << MAP_HUGE_SHIFT), -1, 0);
-    if (mapped_target==MAP_FAILED) {
+    auto mapped_target = mmap((void *) start_address, HUGEPAGE_SZ, MMAP_PROT, MMAP_FLAGS, fileno(fp), 0);
+    if (mapped_target == MAP_FAILED) {
       perror("mmap");
       exit(EXIT_FAILURE);
     }
-    start_address = (volatile char*)mapped_target;
+    target = (volatile char*) mapped_target;
+    auto saddr_phy = pagemap::vaddr2paddr((uint64_t)mapped_target);
+    Logger::log_info(format_string("Allocated memory (paddr): 0x%lx-0x%lx",
+                                   (uint64_t)saddr_phy, (uint64_t)(saddr_phy+HUGEPAGE_SZ)));
   } else {
     // allocate memory using huge pages
-    assert(posix_memalign((void **) &target, size, size)==0);
-    assert(madvise((void *) target, size, MADV_HUGEPAGE)==0);
-    memset((char *) target, 'A', size);
+    assert(posix_memalign((void **) &target, mem_size, mem_size)==0);
+    assert(madvise((void *) target, mem_size, MADV_HUGEPAGE)==0);
+    memset((char *) target, 'A', mem_size);
     // for khugepaged
     Logger::log_info("Waiting for khugepaged.");
     sleep(10);
+  }
+
+  if (target!=start_address) {
+    Logger::log_error(format_string("Could not create mmap area at address %p, instead using %p.",
+        start_address, target));
+    start_address = target;
   }
 
   // initialize memory with random but reproducible sequence of numbers
   initialize(DATA_PATTERN::RANDOM);
 }
 
-void Memory::set_seed(uint64_t seed) {
-  Memory::seed = seed;
-}
-
-void Memory::initialize(DATA_PATTERN data_pattern) {
-  Logger::log_info("Initializing memory with pseudorandom sequence.");
-  if(seed > 0) {
-    srand(seed);
+void Memory::check_memory_full() {
+//#if (DEBUG==1)
+  // this function should only be used for debugging purposes as checking the whole superpage is expensive!
+  Logger::log_debug("check_memory_full should only be used for debugging purposes as checking the whole superpage is expensive!");
+  const auto pagesz = (size_t)getpagesize();
+  bool has_flip = false;
+  for (size_t i = 0; i < size; i += pagesz) {
+    auto start_shadow = (volatile char *) ((uint64_t)shadow_page + i);
+    auto start_sp = (volatile char *) ((uint64_t)start_address + i);
+    if (memcmp((void*)start_shadow, (void*)start_sp, pagesz) != 0) {
+      for (size_t j = 0; j < pagesz; j++) {
+        if (start_shadow[j] != start_sp[j]) {
+          auto addr = DRAMAddr((void*)&start_sp[j]).to_string_compact();
+          Logger::log_error(format_string("Found bit flip in full memory scan at %p %s", &start_sp[j], addr.c_str()));
+          start_sp[j] = start_shadow[j];
+          clflushopt(&start_sp[j]);
+          has_flip = true;
+        }
+      }
+    }
   }
 
+  // if (has_flip)
+  //     exit(EXIT_FAILURE);
+//#else
+//  assert(false && "Memory::check_memory_full should only be used for debugging purposes!");
+//#endif
+}
+
+void Memory::initialize(DATA_PATTERN patt) {
+  if (not superpage) {
+    Logger::log_error("The function Memory::initialize has not been adapted to work with regular pages! Exiting.");
+    exit(EXIT_FAILURE);
+  }
+
+  this->data_pattern = patt;
+  Logger::log_info("Initializing memory with pseudorandom sequence.");
+
   // for each page in the address space [start, end]
-  for (uint64_t cur_page = 0; cur_page < size; cur_page += getpagesize()) {
+  for (uint64_t cur_page = 0; cur_page < HUGEPAGE_SZ; cur_page += getpagesize()) {
     // reseed rand to have a sequence of reproducible numbers, using this we can compare the initialized values with
     // those after hammering to see whether bit flips occurred
-    srand(static_cast<unsigned int>(cur_page*getpagesize()));
+    reseed_srand(cur_page);
     for (uint64_t cur_pageoffset = 0; cur_pageoffset < (uint64_t) getpagesize(); cur_pageoffset += sizeof(int)) {
-
-      int fill_value = 0;
-      if (data_pattern == DATA_PATTERN::RANDOM) {
-        fill_value = rand();
-      } else if (data_pattern == DATA_PATTERN::ZEROES) {
-        fill_value = 0;
-      } else if (data_pattern == DATA_PATTERN::ONES) {
-        fill_value = 1;
-      } else {
-        Logger::log_error("Could not initialize memory with given (unknown) DATA_PATTERN.");
-      }
-        
       // write (pseudo)random 4 bytes
       uint64_t offset = cur_page + cur_pageoffset;
-      *((int *) (start_address + offset)) = fill_value;
+      auto val = get_fill_value();
+      *((uint32_t *) ((uint64_t)start_address + offset)) = val;
+      *((uint32_t*)((uint64_t)shadow_page + offset)) = val;
     }
   }
 }
 
+void Memory::reseed_srand(uint64_t cur_page) {
+  srand(cur_page*(uint64_t)getpagesize());
+}
+
 size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_mode, bool verbose) {
   flipped_bits.clear();
-  mapping.bit_flips.emplace_back();
 
   auto victim_rows = mapping.get_victim_rows();
-  if (verbose) Logger::log_info(format_string("Checking %zu victims for bit flips.", victim_rows.size()));
+  if (verbose) {
+    Logger::log_info(format_string("Checking %zu victims for bit flips.", 
+      victim_rows.size()));
+  }
 
   size_t sum_found_bitflips = 0;
-  for (const auto &victim_row : victim_rows) {
-    auto start_addr = victim_row;
-    auto end_addr = victim_row + DRAMConfig::get().row_to_row_offset();
-    sum_found_bitflips += check_memory_internal(mapping, start_addr, end_addr, reproducibility_mode, verbose);
+  for (auto &vr : victim_rows) {
+    auto* start = (volatile char*)vr.to_virt();
+    auto* end = start + DRAMAddr::get_row_to_row_offset();
+    sum_found_bitflips += check_memory_internal(mapping, start, end, reproducibility_mode, verbose);
   }
   return sum_found_bitflips;
 }
 
-size_t Memory::check_memory(const volatile char *start, const volatile char *end) {
-  flipped_bits.clear();
-  // create a "fake" pattern mapping to keep this method for backward compatibility
-  PatternAddressMapper pattern_mapping;
-  pattern_mapping.bit_flips.emplace_back();
-  return check_memory_internal(pattern_mapping, start, end, false, true);
+uint32_t Memory::get_fill_value() const {
+  if (data_pattern == DATA_PATTERN::RANDOM) {
+    return rand(); // NOLINT(cert-msc50-cpp)
+  } else if (data_pattern == DATA_PATTERN::ZEROES) {
+    return 0;
+  } else if (data_pattern == DATA_PATTERN::ONES) {
+    return std::numeric_limits<uint8_t>::max();
+  } else {
+    Logger::log_error("Could not initialize memory with given (unknown) DATA_PATTERN.");
+    exit(EXIT_FAILURE);
+  }
+}
+
+uint64_t Memory::round_down_to_next_page_boundary(uint64_t address) {
+  const auto pagesize = getpagesize();
+  return ((pagesize-1)&address)
+      ? ((address+pagesize) & ~(pagesize-1))
+      :address;
 }
 
 size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
@@ -172,8 +258,8 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
           const auto flipped_addr_value = *(unsigned char *) flipped_address;
           const auto expected_value = ((unsigned char *) &expected_rand_value)[c];
           if (verbose) {
-            Logger::log_bitflip(flipped_address, flipped_addr_dram.actual_bank(), flipped_addr_dram.row,
-                expected_value, flipped_addr_value, (size_t) time(nullptr), true);
+            Logger::log_bitflip(flipped_addr_dram, flipped_addr_value,
+                expected_value);
           }
           // store detailed information about the bit flip
           BitFlip bitflip(flipped_addr_dram, (expected_value ^ flipped_addr_value), flipped_addr_value);
@@ -205,17 +291,24 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
   return found_bitflips;
 }
 
-Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage), seed(0) {
-}
+Memory::Memory(bool use_superpage)
+    : size(0), superpage(use_superpage) {
 
-Memory::Memory(bool use_superpage, uint64_t seed) : size(0), superpage(use_superpage), seed(seed) {
+  // allocate memory for the shadow page we will use later for fast comparison
+  shadow_page = malloc(HUGEPAGE_SZ);
 }
 
 Memory::~Memory() {
-  if (munmap((void *) start_address, size) == -1) {
+  if (munmap((void *) start_address, size) != 0) {
     Logger::log_error("munmap failed with error:");
     Logger::log_data(strerror(errno));
+    exit(EXIT_FAILURE);
   }
+  start_address = nullptr;
+  size = 0;
+
+  free(shadow_page);
+  shadow_page = nullptr;
 }
 
 volatile char *Memory::get_starting_address() const {
@@ -223,19 +316,19 @@ volatile char *Memory::get_starting_address() const {
 }
 
 std::string Memory::get_flipped_rows_text_repr() {
-  // first extract all rows, otherwise it will not be possible to know in advance whether we we still
-  // need to add a separator (comma) to the string as upcoming DRAMAddr instances might refer to the same row
-  std::set<size_t> flipped_rows;
-  for (const auto &da : flipped_bits) {
-    flipped_rows.insert(da.address.row);
-  }
-
   std::stringstream ss;
-  for (const auto &row : flipped_rows) {
-    ss << row;
-    if (row!=*flipped_rows.rbegin()) ss << ",";
+  size_t cnt = 0;
+  std::unordered_set<size_t> rows;
+  for (const auto &row : flipped_bits) {
+    if (rows.find(row.address.get_row()) != rows.end()) {
+      continue;
+    }
+    if (cnt > 0) {
+      ss << ", ";
+    }
+    ss << row.address.get_row();
+    rows.insert(row.address.get_row());
+    cnt++;
   }
   return ss.str();
 }
-
-
