@@ -186,6 +186,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
     printf("[SUCCESS] flipped %d bits on this pattern combination.\n", total_flips);
   }
 
+  printf("hammering took %lu us at most.\n", std::chrono::duration_cast<std::chrono::microseconds>(locationReport.duration()).count());
   printf("\n###########################################################################################\n\n");
 
   return locationReport;
