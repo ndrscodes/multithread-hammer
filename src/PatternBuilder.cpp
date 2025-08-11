@@ -1,4 +1,3 @@
-#include <cstdint>
 #include <random>
 #include <unordered_set>
 
@@ -7,12 +6,13 @@
 
 std::mt19937 PatternBuilder::gen = std::mt19937(std::random_device()());
 
-PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
-    : pattern(hammering_pattern), aggressor_id_counter(1) {
-}
-
 void PatternBuilder::set_seed(uint64_t seed) {
   gen = std::mt19937(seed);
+}
+
+PatternBuilder::PatternBuilder(HammeringPattern &hammering_pattern)
+    : pattern(hammering_pattern), aggressor_id_counter(1) {
+  cr = CustomRandom();
 }
 
 size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {
@@ -21,7 +21,7 @@ size_t PatternBuilder::get_random_gaussian(std::vector<int> &list) {
   do {
     auto mean = static_cast<double>((list.size()%2==0) ? list.size()/2 - 1 : (list.size() - 1)/2);
     std::normal_distribution<> d(mean, 1);
-    result = (size_t) d(gen);
+    result = (size_t) d(cr.gen);
   } while (result >= list.size());
   return result;
 }

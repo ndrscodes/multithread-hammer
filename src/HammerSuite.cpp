@@ -669,6 +669,7 @@ void HammerSuite::hammer_fn(size_t id,
 #endif
 #if USE_ZEN_JITTER
   jitter.hammer_pattern(params, true);
+  printf("done\n");
   jitter.cleanup();
 #else
   size_t timing = fn();

@@ -1,3 +1,5 @@
+#include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <ctime>
 #include <iomanip>
@@ -5,6 +7,7 @@
 #include "CodeJitter.hpp"
 #include "AsmPrimitives.hpp"
 #include "Pagemap.hpp"
+#include "asmjit/x86/x86operand.h"
 #include <cassert>
 
 #define MEASURE_TIME (1)
@@ -44,10 +47,7 @@ size_t CodeJitter::hammer_pattern(FuzzingParameterSet &fuzzing_parameters, bool 
 
   assert(fn != nullptr && "jitting hammering code failed!");
   size_t total_sync_acts = 0;
-//  total_sync_acts = fn();
-  while (true) {
-    (void)fn();
-  }
+  total_sync_acts = fn();
 
   if (verbose) {
     Logger::log_data(format_string("#sync_acts: %d", total_sync_acts));
@@ -151,12 +151,14 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
   assembler.lfence();
   assembler.rdtscp();  // result: edx:eax
   assembler.sub(asmjit::x86::eax, asmjit::x86::ebx);
-  assembler.cmp(asmjit::x86::eax, (uint64_t) REFRESH_THRESHOLD_CYCLES_LOW);
+  assembler.cmp(asmjit::x86::eax, (uint64_t) 0);
+  
 
   // depending on the cmp's outcome, jump out of loop or to the loop's beginning
   assembler.jg(while1_end);
   assembler.jmp(while1_begin);
   assembler.bind(while1_end);
+
 
   // ------- part 2: perform hammering ---------------------------------------------------------------------------------
 
@@ -170,8 +172,8 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 
   // a map to keep track of aggressors that have been accessed before and need a fence before their next access
   std::unordered_map<uint64_t, bool> accessed_before;
-
   // hammer each aggressor once
+  
   for (size_t i = 0; i < aggressor_pairs.size(); i++) {
     auto cur_addr = (uint64_t) aggressor_pairs[i];
 
@@ -232,9 +234,9 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 
   assembler.jmp(for_begin);
   assembler.bind(for_end);
-
   // now move our counter for no. of activations in the end of interval sync. to the 1st output register %eax
   assembler.mov(asmjit::x86::eax, asmjit::x86::edx);
+
   assembler.ret();  // this is ESSENTIAL otherwise execution of jitted code creates a segfault
 
   // add the generated code to the runtime.
@@ -246,7 +248,6 @@ void CodeJitter::jit_strict(FLUSHING_STRATEGY flushing,
 //   uncomment the following line to see the jitted ASM code
   if (logger != nullptr) {
     printf("[DEBUG] asmjit logger content:\n%s\n", logger->_content.data());
-    exit(0);
   }
 #endif
 #else

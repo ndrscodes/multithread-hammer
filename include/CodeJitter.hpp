@@ -6,6 +6,7 @@
 
 #include "Enums.hpp"
 #include "FuzzingParameterSet.hpp"
+#define ENABLE_JITTING
 
 #ifdef ENABLE_JITTING
 #include <asmjit/asmjit.h>
@@ -14,6 +15,7 @@
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
 #endif
+
 
 struct synchronization_stats {
   // how often we accessed sync dummies

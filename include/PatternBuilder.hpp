@@ -1,12 +1,10 @@
-/*
- * Copyright (c) 2024 by ETH Zurich.
- * Licensed under the MIT License, see LICENSE file for more details.
- */
-
 #ifndef PATTERNBUILDER
 #define PATTERNBUILDER
 
+#include <cstdint>
+#ifdef ENABLE_JITTING
 #include <asmjit/asmjit.h>
+#endif
 
 #include <algorithm>
 #include <iostream>
@@ -23,13 +21,14 @@ class PatternBuilder {
 
   int aggressor_id_counter;
 
+  CustomRandom cr;
+
   static int get_next_prefilled_slot(size_t cur_idx, std::vector<int> start_indices_prefilled_slots, int base_period,
                               int &cur_prefilled_slots_idx);
 
  public:
   /// default constructor that randomizes fuzzing parameters
   explicit PatternBuilder(HammeringPattern &hammering_pattern);
-
   static void set_seed(uint64_t seed);
 
   void generate_frequency_based_pattern(FuzzingParameterSet &params, int pattern_length, int base_period);

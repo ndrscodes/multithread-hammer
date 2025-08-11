@@ -23,6 +23,7 @@ uint64_t static inline GB(uint64_t value) { return ((value) << 30ULL); }
 // number of bytes to be allocated
 #define MEM_SIZE (GB(1))
 #define HUGEPAGE_SZ (GB(1))
+#define ENABLE_JITTING
 
 // TODO: do not hard-code these values but pass them like in rowhammer-ref-impl
 // number of total banks in the system, calculated as #bankgroups x #banks
