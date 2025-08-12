@@ -168,8 +168,12 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
     PatternReport report {
       .pattern = patterns[i],
       .flips = flips,
-      .duration = ends[i] - starts[i]
+      .duration = ends[i] - starts[i],
     };
+
+    if(!reproducibility_mode) {
+      report.bit_flips = patterns[i].mapper.bit_flips.back();
+    }
 
     total_flips += report.flips;
     if(report.flips) {
@@ -417,7 +421,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
         for(int p = 0; p < patterns.size(); p++) {
           auto pat = patterns[p];
           std::set<size_t> banks;
-          for(auto& flip : pat.pattern.mapper.bit_flips[p * threads + loc]) {
+          for(auto& flip : pat.bit_flips) {
             exporter.export_flip(
               flip, 
               r, 

@@ -1,4 +1,5 @@
 #pragma once
+#include "BitFlip.hpp"
 #include "FuzzingParameterSet.hpp"
 #include "MappedPattern.hpp"
 #include <chrono>
@@ -9,6 +10,7 @@ typedef struct {
   MappedPattern pattern;
   size_t flips;
   std::chrono::duration<float_t> duration;
+  std::vector<BitFlip> bit_flips;
 } PatternReport;
 
 class LocationReport {
