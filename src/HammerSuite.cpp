@@ -417,7 +417,7 @@ std::vector<FuzzReport> HammerSuite::filter_and_analyze_flips(std::vector<FuzzRe
         for(int p = 0; p < patterns.size(); p++) {
           auto pat = patterns[p];
           std::set<size_t> banks;
-          for(auto& flip : pat.pattern.mapper.bit_flips[loc]) {
+          for(auto& flip : pat.pattern.mapper.bit_flips[p * threads + loc]) {
             exporter.export_flip(
               flip, 
               r, 
