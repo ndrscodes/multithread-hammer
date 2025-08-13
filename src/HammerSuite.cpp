@@ -271,7 +271,6 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<HammeringPatt
 
 FuzzReport HammerSuite::fuzz(Args &args) {
   FuzzingParameterSet parameters;
-  parameters.set_interleaved(args.interleaved);
   parameters.randomize_parameters();
   std::vector<HammeringPattern> fuzz_patterns(args.threads);
 

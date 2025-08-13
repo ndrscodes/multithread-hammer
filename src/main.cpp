@@ -132,14 +132,13 @@ int main(int argc, char* argv[]) {
   if(args.seed > 0) {
     alloc.set_seed(args.seed);
     HammerSuite::set_seed(args.seed);
-    FuzzingParameterSet::set_seed(args.seed);
     SimplePatternBuilder::set_seed(args.seed);
     PatternBuilder::set_seed(args.seed);
     PatternAddressMapper::set_seed(args.seed);
   }
   printf("creating allocation...\n");
-  alloc.allocate_memory(DRAMConfig::get().memory_size());
-  DRAMAddr::initialize(alloc.get_starting_address(), 2, 8, 4, false);
+  alloc.allocate_memory(HUGEPAGE_SZ);
+  DRAMAddr::initialize(alloc.get_starting_address(), 1, 8, 4, false);
 
   printf("initialized runtime parameter to %lu.\n", args.runtime_limit);
   printf("initialized location parameter to %hu.\n", args.locations);
