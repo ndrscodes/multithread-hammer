@@ -124,7 +124,6 @@ int main(int argc, char* argv[]) {
   int ret = setpriority(PRIO_PROCESS, 0, -20);
   if (ret!=0) printf("Instruction setpriority failed.\n");
   
-  DRAMConfig::select_config(Microarchitecture::AMD_ZEN_3, 1, 4, 4, false);
   DRAMAddr::initialize_configs();
 
   Args args = parse_args(argc, argv);
