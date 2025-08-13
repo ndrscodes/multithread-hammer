@@ -191,6 +191,7 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
                                      bool verbose) {
   // counter for the number of found bit flips in the memory region [start, end]
   size_t found_bitflips = 0;
+  mapping.bit_flips.emplace_back();
 
   if (start==nullptr || end==nullptr || ((uint64_t) start >= (uint64_t) end)) {
     Logger::log_error("Function check_memory called with invalid arguments.");
