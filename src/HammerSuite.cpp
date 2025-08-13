@@ -20,6 +20,7 @@
 #include <vector>
 #include <x86intrin.h>
 #include "CodeJitter.hpp"
+#include "DRAMAddr.hpp"
 #include "DRAMConfig.hpp"
 #include "Enums.hpp"
 #include "FuzzReport.hpp"
@@ -56,8 +57,6 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
   std::mt19937 rand(args.seed == 0 ? std::random_device()() : args.seed);
   size_t thread_id = args.thread_start_id;
   RefreshTimer timer((volatile char *)DRAMAddr(0, 0, 0).to_virt());
-  //store it in the DRAMConfig so it can be used by ZenHammers CodeJitter.
-  DRAMConfig::get().set_sync_ref_threshold(timer.get_refresh_threshold());
 
   std::vector<std::vector<volatile char *>> exported_patterns;
   bool first = true;
@@ -111,7 +110,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
     }
 
     std::barrier fake_barrier(1);
-    CodeJitter jitter;
+    CodeJitter jitter(timer.get_refresh_threshold());
 
     hammer_fn(
       thread_id, 
@@ -524,7 +523,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
           
           size_t first_bank = patterns[0].mapper.pattern_start_row.get_bank();
           while(banks.contains(first_bank)) {
-            first_bank = first_bank + 1 % DRAMConfig::get().banks();
+            first_bank = first_bank + 1 % DRAMAddr::MemConfig.BK_MASK;
           }
           banks.insert(first_bank);
 

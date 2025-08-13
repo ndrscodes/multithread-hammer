@@ -12,12 +12,13 @@
 
 #define MEASURE_TIME (1)
 
-CodeJitter::CodeJitter()
+CodeJitter::CodeJitter(uint64_t threshold)
     : flushing_strategy(FLUSHING_STRATEGY::EARLIEST_POSSIBLE),
       fencing_strategy(FENCING_STRATEGY::LATEST_POSSIBLE),
       total_activations(5000000) {
 #ifdef ENABLE_JITTING
   logger = new asmjit::StringLogger;
+  this->threshold = threshold;
 #endif
 }
 

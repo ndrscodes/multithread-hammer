@@ -1,6 +1,7 @@
 #ifndef CODEJITTER
 #define CODEJITTER
 
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 
@@ -36,6 +37,7 @@ class CodeJitter {
 
   const uint64_t REFRESH_THRESHOLD_CYCLES_LOW  = 500;
   const uint64_t REFRESH_THRESHOLD_CYCLES_HIGH = 900;
+  uint64_t threshold;
 
   /// a function pointer to a function that takes no input (void) and returns an integer
   int (*fn)() = nullptr;
@@ -53,7 +55,7 @@ class CodeJitter {
   size_t sync_rows_size;
 
   /// constructor
-  CodeJitter();
+  CodeJitter(uint64_t threshold);
   
   /// destructor
   ~CodeJitter();
