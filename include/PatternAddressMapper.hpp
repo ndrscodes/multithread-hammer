@@ -28,16 +28,19 @@ class PatternAddressMapper {
  private:
   std::unordered_set<volatile char *> victim_rows;
 
+  bool randomize_cols;
+
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
 
   // a randomization engine
   static std::mt19937 gen;
+  static std::mt19937 col_gen;
 
  public:
   std::unique_ptr<CodeJitter> code_jitter;
 
-  PatternAddressMapper();
+  PatternAddressMapper(bool randomize_cols);
 
   // copy constructor
   PatternAddressMapper(const PatternAddressMapper& other);

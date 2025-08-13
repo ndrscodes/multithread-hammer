@@ -13,14 +13,16 @@
 // initialize the bank_counter (static var)
 int PatternAddressMapper::bank_counter = 0;
 std::mt19937 PatternAddressMapper::gen = std::mt19937(std::random_device()());
+std::mt19937 PatternAddressMapper::col_gen = std::mt19937(std::random_device()());
 
-PatternAddressMapper::PatternAddressMapper()
-    : instance_id(uuid::gen_uuid()) { /* NOLINT */
+PatternAddressMapper::PatternAddressMapper(bool randomize_cols)
+    : instance_id(uuid::gen_uuid()), randomize_cols(randomize_cols) { /* NOLINT */
   code_jitter = std::make_unique<CodeJitter>();
 }
 
 void PatternAddressMapper::set_seed(uint64_t seed) {
   PatternAddressMapper::gen = std::mt19937(seed);
+  PatternAddressMapper::col_gen = std::mt19937(seed);
 }
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,
@@ -29,6 +31,8 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   // clear any already existing mapping
   aggressor_to_addr.clear();
   printf("address mapper drawing random number... it was %lu.\n", gen());
+
+  std::uniform_int_distribution<> col_distribution(0, DRAMConfig::get().columns());
 
   // retrieve and then store randomized values as they should be the same for all added addresses
   // (store bank_no as field for get_random_nonaccessed_rows)
@@ -132,8 +136,10 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
 
       assignment_trial_cnt = 0;
       occupied_rows.insert(row);
+
+      size_t col = randomize_cols ? col_distribution(col_gen) : 0;
       
-      aggressor_to_addr.insert(std::make_pair(current_agg.id, DRAMAddr(static_cast<size_t>(bank_no), row, 0)));
+      aggressor_to_addr.insert(std::make_pair(current_agg.id, DRAMAddr(static_cast<size_t>(bank_no), row, col)));
     }
   }
 

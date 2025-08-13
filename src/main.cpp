@@ -64,7 +64,8 @@ void print_help() {
   printf("%-40s: runtime in seconds.\n", "-r, --runtime <seconds>");
   printf("%-40s: number of locations.\n", "-l, --locations <locations>");
   printf("%-40s: number of threads/interleaved patterns.\n", "-t, --threads <threads>");
-  printf("%-40s: check effective patterns after run.\n", "-f, --fuzz-effective");
+  printf("%-40s: check effective patterns after run (using all other found patterns).\n", "-fc, --fuzz-combined");
+  printf("%-40s: check effective patterns after run.\n", "-fr, --fuzz-random");
   printf("%-40s: seed to use.\n", "-s, --seed <seed>");
   printf("%-40s: interleaved mode. Use pattern interleaving instead of multiple threads.\n", "-i, --interleaved");
   printf("%-40s: desired fence type (lfence, mfence, sfence).\n", "--fence-type <type>");
@@ -75,6 +76,7 @@ void print_help() {
   printf("%-40s: randomize each pattern per thread instead of per fuzzing run.\n", "--randomize-each");
   printf("%-40s: the flushing strategy (earliest, latest).\n", "--flushing-strategy <type>");
   printf("%-40s: the fencing strategy (earliest, latest, omit).\n", "--fencing-strategy <type>");
+  printf("%-40s: if column numbers should be randomized as well.\n", "-rc, --random-columns");
 }
 
 Args parse_args(int argc, char* argv[]) {
@@ -153,6 +155,8 @@ Args parse_args(int argc, char* argv[]) {
     } else if(strcmp("--thread", argv[i]) == 0 && i + 1 < argc) {
       args.thread_start_id = atol(argv[i + 1]);
       i++;
+    } else if(strcmp("-rc", argv[i]) == 0 || strcmp("--random-columns", argv[i])) {
+      args.randomize_cols = true;
     } else {
       printf("unknown option: %s\n", argv[i]);
       print_help();
@@ -195,6 +199,9 @@ int main(int argc, char* argv[]) {
   printf("initialized simple pattern mode for first thread to %b\n", args.simple_patterns_first_thread);
   printf("initialized simple pattern mode for other threads to %b\n", args.simple_patterns_other_threads);
   printf("initialized fencing strategy to %s\n", to_string(args.fence_type).c_str());
+  if(args.randomize_cols) {
+    printf("columns will be randomized\n");
+  }
   HammerSuite *suite;
   if(args.interleaved) {
     printf("running in interleaved mode, just a single thread will be used.\n");
