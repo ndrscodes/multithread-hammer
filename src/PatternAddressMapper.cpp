@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
+#include "CodeJitter.hpp"
 #include "DRAMAddr.hpp"
 #include "GlobalDefines.hpp"
 #include "Uuid.hpp"
@@ -33,7 +34,7 @@ void PatternAddressMapper::set_seed(uint64_t seed) {
 
 PatternAddressMapper::PatternAddressMapper()
     : cr(CustomRandom()), instance_id(uuid::gen_uuid(cr.gen)) {
-  code_jitter = std::make_unique<CodeJitter>();
+  code_jitter = std::make_unique<CodeJitter>(500);
 }
 
 void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_params,

@@ -22,6 +22,16 @@ CodeJitter::CodeJitter(uint64_t threshold)
 #endif
 }
 
+CodeJitter::CodeJitter()
+    : flushing_strategy(FLUSHING_STRATEGY::EARLIEST_POSSIBLE),
+      fencing_strategy(FENCING_STRATEGY::LATEST_POSSIBLE),
+      total_activations(5000000),
+      threshold(REFRESH_THRESHOLD_CYCLES_LOW) {
+#ifdef ENABLE_JITTING
+  logger = new asmjit::StringLogger;
+#endif
+}
+
 CodeJitter::~CodeJitter() {
   cleanup();
 }

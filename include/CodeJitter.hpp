@@ -56,6 +56,7 @@ class CodeJitter {
 
   /// constructor
   CodeJitter(uint64_t threshold);
+  CodeJitter();
   
   /// destructor
   ~CodeJitter();
