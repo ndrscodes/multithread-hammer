@@ -82,7 +82,7 @@ void print_help() {
 Args parse_args(int argc, char* argv[]) {
   Args args;
   for(int i = 1; i < argc; i++) {
-    if((strncmp("-r", argv[i], 2) == 0 || strncmp("--runtime", argv[i], 9) == 0) && i + 1 < argc) {
+    if((strcmp("-r", argv[i]) == 0 || strcmp("--runtime", argv[i]) == 0) && i + 1 < argc) {
       args.runtime_limit = atoi(argv[i + 1]);
       i++;
     } else if((strcmp("-l", argv[i]) == 0 || strcmp("--locations", argv[i]) == 0) && i + 1 < argc) {
