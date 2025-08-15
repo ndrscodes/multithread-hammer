@@ -24,11 +24,20 @@
 
 class HammeringPattern;
 
+enum ColumnRandomizationStyle {
+  NONE,
+  PER_AGGRESSOR,
+  PER_ACCESS
+};
+
 class PatternAddressMapper {
  private:
   std::unordered_set<volatile char *> victim_rows;
 
-  bool randomize_cols;
+  ColumnRandomizationStyle randomization_style;
+
+  std::uniform_int_distribution<> col_distribution;
+  volatile char* get_aggressor(AGGRESSOR_ID_TYPE aggressor);
 
   // the unique identifier of this pattern-to-address mapping
   std::string instance_id;
@@ -40,7 +49,7 @@ class PatternAddressMapper {
  public:
   std::unique_ptr<CodeJitter> code_jitter;
 
-  PatternAddressMapper(bool randomize_cols);
+  PatternAddressMapper(ColumnRandomizationStyle randomization_style);
 
   // copy constructor
   PatternAddressMapper(const PatternAddressMapper& other);

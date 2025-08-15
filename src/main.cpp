@@ -42,8 +42,22 @@ FLUSHING_STRATEGY find_flushing_strategy(std::string strategy) {
   if("latest" == strategy) {
     return FLUSHING_STRATEGY::LATEST_POSSIBLE;
   }
+  if("omit" == strategy) {
+    return FLUSHING_STRATEGY::OMIT_FLUSHING;
+  }
 
   return FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
+}
+
+ColumnRandomizationStyle find_randomization_style(std::string randomization_style) {
+  if("all" == randomization_style) {
+    return ColumnRandomizationStyle::PER_ACCESS;
+  }
+  if("aggressor" == randomization_style) {
+    return ColumnRandomizationStyle::PER_AGGRESSOR;
+  }
+
+  return ColumnRandomizationStyle::NONE;
 }
 
 FENCING_STRATEGY find_fencing_strategy(std::string strategy) {
@@ -76,7 +90,7 @@ void print_help() {
   printf("%-40s: randomize each pattern per thread instead of per fuzzing run.\n", "--randomize-each");
   printf("%-40s: the flushing strategy (earliest, latest).\n", "--flushing-strategy <type>");
   printf("%-40s: the fencing strategy (earliest, latest, omit).\n", "--fencing-strategy <type>");
-  printf("%-40s: if column numbers should be randomized as well.\n", "-rc, --random-columns");
+  printf("%-40s: column randomization style (all, aggressor, none).\n", "-rs, --randomization-style");
 }
 
 Args parse_args(int argc, char* argv[]) {
@@ -155,8 +169,9 @@ Args parse_args(int argc, char* argv[]) {
     } else if(strcmp("--thread", argv[i]) == 0 && i + 1 < argc) {
       args.thread_start_id = atol(argv[i + 1]);
       i++;
-    } else if(strcmp("-rc", argv[i]) == 0 || strcmp("--random-columns", argv[i])) {
-      args.randomize_cols = true;
+    } else if(strcmp("-rs", argv[i]) == 0 || strcmp("--randomization-style", argv[i]) && i + 1 < argc) {
+      args.randomization_style = find_randomization_style(std::string(argv[i + 1]));
+      i++;
     } else {
       printf("unknown option: %s\n", argv[i]);
       print_help();
@@ -199,8 +214,9 @@ int main(int argc, char* argv[]) {
   printf("initialized simple pattern mode for first thread to %b\n", args.simple_patterns_first_thread);
   printf("initialized simple pattern mode for other threads to %b\n", args.simple_patterns_other_threads);
   printf("initialized fencing strategy to %s\n", to_string(args.fence_type).c_str());
-  if(args.randomize_cols) {
-    printf("columns will be randomized\n");
+  if(args.randomization_style != ColumnRandomizationStyle::NONE) {
+    printf("columns will be randomized with type: %s\n", 
+           args.randomization_style == ColumnRandomizationStyle::PER_AGGRESSOR ? "PER_AGGRESSOR" : "PER_ACCESS");
   }
   HammerSuite *suite;
   if(args.interleaved) {

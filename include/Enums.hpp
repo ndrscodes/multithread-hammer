@@ -13,7 +13,8 @@ enum class FLUSHING_STRATEGY : int {
   // flush an accessed aggressor as soon as it has been accessed (i.e., pairs are flushed in-between)
   EARLIEST_POSSIBLE = 1,
   // add the flush right before the next access of the aggressor
-  LATEST_POSSIBLE = 2
+  LATEST_POSSIBLE = 2,
+  OMIT_FLUSHING = 3
 };
 
 std::string to_string(FLUSHING_STRATEGY strategy);

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <random>
 
+#include "Aggressor.hpp"
 #include "Enums.hpp"
 #include "HammeringPattern.hpp"
 #include "GlobalDefines.hpp"
@@ -15,9 +16,10 @@ int PatternAddressMapper::bank_counter = 0;
 std::mt19937 PatternAddressMapper::gen = std::mt19937(std::random_device()());
 std::mt19937 PatternAddressMapper::col_gen = std::mt19937(std::random_device()());
 
-PatternAddressMapper::PatternAddressMapper(bool randomize_cols)
-    : instance_id(uuid::gen_uuid()), randomize_cols(randomize_cols) { /* NOLINT */
+PatternAddressMapper::PatternAddressMapper(ColumnRandomizationStyle randomization_style)
+    : instance_id(uuid::gen_uuid()), randomization_style(randomization_style) { /* NOLINT */
   code_jitter = std::make_unique<CodeJitter>();
+  std::uniform_int_distribution<> col_distribution(0, DRAMConfig::get().columns());
 }
 
 void PatternAddressMapper::set_seed(uint64_t seed) {
@@ -31,8 +33,6 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
   // clear any already existing mapping
   aggressor_to_addr.clear();
   printf("address mapper drawing random number... it was %lu.\n", gen());
-
-  std::uniform_int_distribution<> col_distribution(0, DRAMConfig::get().columns());
 
   // retrieve and then store randomized values as they should be the same for all added addresses
   // (store bank_no as field for get_random_nonaccessed_rows)
@@ -137,7 +137,7 @@ void PatternAddressMapper::randomize_addresses(FuzzingParameterSet &fuzzing_para
       assignment_trial_cnt = 0;
       occupied_rows.insert(row);
 
-      size_t col = randomize_cols ? col_distribution(col_gen) : 0;
+      size_t col = randomization_style == ColumnRandomizationStyle::PER_AGGRESSOR ? col_distribution(col_gen) : 0;
       
       aggressor_to_addr.insert(std::make_pair(current_agg.id, DRAMAddr(static_cast<size_t>(bank_no), row, col)));
     }
@@ -229,6 +229,14 @@ std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::v
   return final_pattern;
 }
 
+volatile char* PatternAddressMapper::get_aggressor(AGGRESSOR_ID_TYPE aggressor) {
+  DRAMAddr address = aggressor_to_addr.at(aggressor);
+  if(randomization_style == ColumnRandomizationStyle::PER_ACCESS) {
+    address = address.add(0, 0, col_distribution(col_gen));
+  }
+  return (volatile char*)address.to_virt();
+}
+
 std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_every_nth_access(const HammeringPattern& pattern, int n) {
   // Insert memory barrier after every N-th access.
   assert(n > 0);
@@ -253,7 +261,7 @@ std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_ever
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    addresses.push_back(get_aggressor(agg.id));
   }
 
   return addresses;
@@ -302,7 +310,7 @@ std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_per_
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    addresses.push_back(get_aggressor(agg.id));
   }
 
   return addresses;
@@ -328,7 +336,7 @@ std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_none
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    addresses.push_back(get_aggressor(agg.id));
   }
 
   return addresses;
@@ -357,7 +365,7 @@ std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_all(
     addresses.push_back(nullptr);
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    addresses.push_back(get_aggressor(agg.id));
   }
 
   return addresses;
@@ -391,7 +399,7 @@ std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_betw
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    addresses.push_back(get_aggressor(agg.id));
   }
 
   return addresses;
@@ -429,7 +437,7 @@ std::vector<volatile char*> PatternAddressMapper::export_pattern_with_fence_betw
     }
 
     // retrieve virtual address of current aggressor in pattern and add it to output vector
-    addresses.push_back((volatile char *) aggressor_to_addr.at(agg.id).to_virt());
+    addresses.push_back(get_aggressor(agg.id));
   }
 
   return addresses;

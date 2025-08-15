@@ -1,5 +1,8 @@
 #include "CodeJitter.hpp"
+#include "Enums.hpp"
 #include "GlobalDefines.hpp"
+#include "asmjit/core/globals.h"
+#include "asmjit/x86/x86assembler.h"
 
 CodeJitter::CodeJitter()
     : pattern_sync_each_ref(false),
@@ -140,17 +143,20 @@ void CodeJitter::jit_strict(
   std::unordered_map<uint64_t, bool> accessed_before;
 
   size_t cnt_total_activations = 0;
+  asmjit::Error (*fence_fn) (asmjit::x86::Assembler&);
+
+  if (fence_type == MFENCE) {
+    fence_fn = [](asmjit::x86::Assembler &as){ return as.mfence(); };
+  } else if (fence_type == LFENCE) {
+    fence_fn = [](asmjit::x86::Assembler &as){ return as.lfence(); };
+  } else if (fence_type == SFENCE) {
+    fence_fn = [](asmjit::x86::Assembler &as){ return as.sfence(); };
+  }
 
   // hammer each aggressor once
   for (auto* aggr : aggressor_pairs) {
     if (aggr == nullptr) {
-      if (fence_type == MFENCE) {
-        a.mfence();
-      } else if (fence_type == LFENCE) {
-        a.lfence();
-      } else if (fence_type == SFENCE) {
-        a.sfence();
-      }
+      fence_fn(a);
       continue;
     }
 
@@ -164,7 +170,7 @@ void CodeJitter::jit_strict(
       }
       // fence to ensure flushing finished and defined order of aggressors is guaranteed
       if (fencing==FENCING_STRATEGY::LATEST_POSSIBLE) {
-        a.mfence();
+        fence_fn(a);
         accessed_before[cur_addr] = false;
       }
     }
@@ -184,9 +190,17 @@ void CodeJitter::jit_strict(
     }
   }
 
+  //we have not flushed any aggressors during the loop, so we need to do it now.
+  if (flushing == FLUSHING_STRATEGY::OMIT_FLUSHING) {
+    for(auto& agg : aggressor_pairs) {
+      a.mov(asmjit::x86::rax, agg);
+      a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
+    }
+  }
+
   // fences -> ensure that aggressors are not interleaved, i.e., we access aggressors always in same order
   if (fencing != FENCING_STRATEGY::OMIT_FENCING) {
-    a.mfence();
+    fence_fn(a);
   }
 
   // ------- part 3: synchronize with the end  -----------------------------------------------------------------------

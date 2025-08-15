@@ -35,7 +35,7 @@ struct Args {
   FENCING_STRATEGY fencing_strategy = FENCING_STRATEGY::EARLIEST_POSSIBLE;
   FLUSHING_STRATEGY flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
   size_t thread_start_id = 0;
-  bool randomize_cols = false;
+  ColumnRandomizationStyle randomization_style = ColumnRandomizationStyle::NONE;
 };
 
 class HammerSuite {
@@ -58,11 +58,11 @@ private:
 public:
   HammerSuite(Memory &memory);
   static void set_seed(uint64_t seed);
-  MappedPattern build_mapped(FuzzingParameterSet &params, bool simple, bool randomize_cols);
-  HammeringPattern generate_pattern(FuzzingParameterSet &params, bool simple, bool randomize_cols);
-  MappedPattern build_mapped(int bank, FuzzingParameterSet &params, bool simple, bool randomize_cols);
-  MappedPattern map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, bool simple, bool randomize_cols);
-  MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, bool simple, bool randomize_cols);
+  MappedPattern build_mapped(FuzzingParameterSet &params, bool simple, ColumnRandomizationStyle randomization_style);
+  HammeringPattern generate_pattern(FuzzingParameterSet &params, bool simple, ColumnRandomizationStyle randomization_style);
+  MappedPattern build_mapped(int bank, FuzzingParameterSet &params, bool simple, ColumnRandomizationStyle randomization_style);
+  MappedPattern map_pattern(int bank, HammeringPattern &pattern, FuzzingParameterSet &params, bool simple, ColumnRandomizationStyle randomization_style);
+  MappedPattern map_pattern(HammeringPattern &pattern, FuzzingParameterSet &params, bool simple, ColumnRandomizationStyle randomization_style);
   std::vector<FuzzReport> filter_and_analyze_flips(std::vector<FuzzReport> &patterns, std::string &filepath);
   FuzzReport fuzz(Args &args);
   LocationReport fuzz_pattern(std::vector<MappedPattern> &patterns, Args &args);
