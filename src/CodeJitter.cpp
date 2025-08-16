@@ -141,7 +141,7 @@ void CodeJitter::jit_strict(
   a.jle(for_end);
 
   // a map to keep track of aggressors that have been accessed before and need a fence before their next access
-  std::unordered_map<uint64_t, bool> accessed_before;
+  std::unordered_map<size_t, bool> accessed_before;
 
   size_t cnt_total_activations = 0;
   asmjit::Error (*fence_fn) (asmjit::x86::Assembler&);
