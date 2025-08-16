@@ -140,7 +140,7 @@ void CodeJitter::jit_strict(
   a.jle(for_end);
 
   // a map to keep track of aggressors that have been accessed before and need a fence before their next access
-  std::unordered_map<uint64_t, bool> accessed_before;
+  std::unordered_map<size_t, bool> accessed_before;
 
   size_t cnt_total_activations = 0;
   asmjit::Error (*fence_fn) (asmjit::x86::Assembler&);
@@ -160,7 +160,7 @@ void CodeJitter::jit_strict(
       continue;
     }
 
-    auto cur_addr = (uint64_t)aggr;
+    auto cur_addr = DRAMAddr((void *)aggr).actual_row();
     if (accessed_before[cur_addr]) {
       // flush
       if (flushing==FLUSHING_STRATEGY::LATEST_POSSIBLE) {
