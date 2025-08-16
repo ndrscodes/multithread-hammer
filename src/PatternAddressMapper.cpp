@@ -606,7 +606,8 @@ PatternAddressMapper::PatternAddressMapper(const PatternAddressMapper &other)
       bank_no(other.bank_no),
       aggressor_to_addr(other.aggressor_to_addr),
       bit_flips(other.bit_flips),
-      reproducibility_score(other.reproducibility_score) {
+      reproducibility_score(other.reproducibility_score),
+      randomization_style(other.randomization_style) {
   code_jitter = std::make_unique<CodeJitter>();
   code_jitter->num_aggs_for_sync = other.get_code_jitter().num_aggs_for_sync;
   code_jitter->total_activations = other.get_code_jitter().total_activations;
@@ -637,6 +638,7 @@ PatternAddressMapper &PatternAddressMapper::operator=(const PatternAddressMapper
   aggressor_to_addr = other.aggressor_to_addr;
   bit_flips = other.bit_flips;
   reproducibility_score = other.reproducibility_score;
+  randomization_style = other.randomization_style;
 
   return *this;
 }
