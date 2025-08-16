@@ -3,6 +3,7 @@
 #include "GlobalDefines.hpp"
 #include "asmjit/core/globals.h"
 #include "asmjit/x86/x86assembler.h"
+#include <cstdint>
 
 CodeJitter::CodeJitter()
     : pattern_sync_each_ref(false),
@@ -140,7 +141,7 @@ void CodeJitter::jit_strict(
   a.jle(for_end);
 
   // a map to keep track of aggressors that have been accessed before and need a fence before their next access
-  std::unordered_map<size_t, bool> accessed_before;
+  std::unordered_map<uint64_t, bool> accessed_before;
 
   size_t cnt_total_activations = 0;
   asmjit::Error (*fence_fn) (asmjit::x86::Assembler&);
@@ -160,25 +161,26 @@ void CodeJitter::jit_strict(
       continue;
     }
 
-    auto cur_addr = DRAMAddr((void *)aggr).actual_row();
-    if (accessed_before[cur_addr]) {
+    auto row = DRAMAddr((void *)aggr).actual_row();
+    auto cur_addr = (uint64_t)aggr;
+    if (accessed_before[row]) {
       // flush
       if (flushing==FLUSHING_STRATEGY::LATEST_POSSIBLE) {
         a.mov(asmjit::x86::rax, cur_addr);
         a.clflushopt(asmjit::x86::ptr(asmjit::x86::rax));
-        accessed_before[cur_addr] = false;
+        accessed_before[row] = false;
       }
       // fence to ensure flushing finished and defined order of aggressors is guaranteed
       if (fencing==FENCING_STRATEGY::LATEST_POSSIBLE) {
         fence_fn(a);
-        accessed_before[cur_addr] = false;
+        accessed_before[row] = false;
       }
     }
 
     // hammer
     a.mov(asmjit::x86::rax, cur_addr);
     a.mov(asmjit::x86::rcx, asmjit::x86::ptr(asmjit::x86::rax));
-    accessed_before[cur_addr] = true;
+    accessed_before[row] = true;
     a.dec(asmjit::x86::rsi);
     a.inc(asmjit::x86::edx);
     cnt_total_activations++;
