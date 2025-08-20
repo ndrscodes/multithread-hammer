@@ -23,6 +23,8 @@ const char* to_string(Microarchitecture uarch) {
     // @iamywang, Jul 17, 2024: add Comet Lake
     case Microarchitecture::INTEL_COMET_LAKE:
       return "INTEL_COMET_LAKE";
+    case Microarchitecture::INTEL_SKY_LAKE:
+      return "INTEL_SKY_LAKE";
   }
   Logger::log_error("Selected microarchitecture does not implement the to_string() method. Please fix!");
   exit(1);
