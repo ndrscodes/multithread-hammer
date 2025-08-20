@@ -21,6 +21,7 @@ enum class Microarchitecture {
   INTEL_COFFEE_LAKE,
   // @iamywang, Jul 17, 2024: add Comet Lake
   INTEL_COMET_LAKE,
+  INTEL_SKY_LAKE,
 };
 
 const char* to_string(Microarchitecture uarch);
