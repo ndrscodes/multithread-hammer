@@ -85,8 +85,9 @@ void print_help() {
   printf("%-40s: desired fence type (lfence, mfence, sfence).\n", "--fence-type <type>");
   printf("%-40s: scheduling type to use (pair, base, halfbase, repeat, default, none, full).\n", "--scheduling <type[,type]>");
   printf("%-40s: build simple patterns instead of complex zenhammer patterns.\n", "--simple <bool[,bool]>");
-  printf("%-40s: when interleaving, controls the number of normal accesses between interleaved aggressors.\n", "--interleave-distance <dist>");
-  printf("%-40s: interleave aggressors from one bank per pair instead of all of them.\n", "--interleave-single-pairs");
+  printf("%-40s: when interleaving, controls the number of normal accesses between interleaved aggressors.\n", "-id, --interleave-distance <dist>");
+  printf("%-40s: when interleaving, controls how many accesses of the current pattern are included per iteration.\n", "-ic, --interleaving-chunk-size <size>");
+  printf("%-40s: when interleaving, controls how many patterns are used in each iteration.\n", "-ip, --interleaving-patterns");
   printf("%-40s: randomize each pattern per thread instead of per fuzzing run.\n", "--randomize-each");
   printf("%-40s: the flushing strategy (earliest, latest).\n", "--flushing-strategy <type>");
   printf("%-40s: the fencing strategy (earliest, latest, omit).\n", "--fencing-strategy <type>");
@@ -150,11 +151,15 @@ Args parse_args(int argc, char* argv[]) {
         args.simple_patterns_other_threads = simple;
       }
       i++;
-    } else if(strcmp("--interleave-distance", argv[i]) == 0 && i + 1 < argc) {
+    } else if((strcmp("--interleaving-distance", argv[i]) == 0 || strcmp("-id", argv[i]) == 0) && i + 1 < argc) {
       args.interleaving_distance = atol(argv[i + 1]);
       i++;
-    } else if(strcmp("--interleave-single-pairs", argv[i]) == 0) {
-      args.interleave_single_pair_only = true;
+    } else if((strcmp("--interleaving-chunk-size", argv[i]) == 0 || strcmp("-ic", argv[i]) == 0) && i + 1 < argc) {
+      args.interleaving_chunk_size = atol(argv[i + 1]);
+      i++;
+    } else if((strcmp("--interleaving-patterns", argv[i]) == 0 || strcmp("-ip", argv[i]) == 0) && i + 1 < argc) {
+      args.interleaving_patterns = atol(argv[i + 1]);
+      i++;
     } else if(strcmp("--randomize-each", argv[i]) == 0) {
       args.randomize_each_pattern = true;
     } else if(strcmp("--fencing-strategy", argv[i]) == 0 && i + 1 < argc) {

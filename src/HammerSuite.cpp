@@ -77,8 +77,10 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
   if(args.interleaved) {
     std::vector<volatile char *> final_pattern = PatternAddressMapper::interleave(
       exported_patterns, 
-      args.interleave_single_pair_only, 
-      args.interleaving_distance);
+      args.interleaving_chunk_size, 
+      args.interleaving_distance,
+      args.interleaving_patterns
+    );
 
     DRAMAddr first_addr(0, 0, 0);
     for(auto ptr : exported_patterns[0]) {

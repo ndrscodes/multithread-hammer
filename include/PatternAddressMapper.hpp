@@ -89,7 +89,12 @@ class PatternAddressMapper {
 
   void remap_aggressors(DRAMAddr &new_location);
 
-  static std::vector<volatile char*> interleave(std::vector<std::vector<volatile char *>> &patterns, bool single_pair_per_iter, size_t distance);
+  static std::vector<volatile char *> interleave(
+    std::vector<std::vector<volatile char *>> &patterns, 
+    size_t chunk_size, 
+    size_t distance,
+    size_t count_per_iter
+  );
   std::vector<volatile char*> export_pattern_with_fence_none(const HammeringPattern& pattern);
   std::vector<volatile char*> export_pattern_with_fence_all(const HammeringPattern& pattern);
   std::vector<volatile char*> export_pattern_with_fence_between_tuples(const HammeringPattern& pattern);

@@ -186,7 +186,12 @@ void PatternAddressMapper::determine_victims(const std::vector<AggressorAccessPa
   }
 }
 
-std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::vector<volatile char *>> &patterns, bool single_pair_per_iter, size_t distance) {
+std::vector<volatile char *> PatternAddressMapper::interleave(
+  std::vector<std::vector<volatile char *>> &patterns, 
+  size_t chunk_size, 
+  size_t distance,
+  size_t count_per_iter
+) {
   std::vector<volatile char *> final_pattern;
   
   if(patterns.size() == 1) {
@@ -196,34 +201,27 @@ std::vector<volatile char *> PatternAddressMapper::interleave(std::vector<std::v
   std::uniform_int_distribution<> random_pattern_dist(1, patterns.size() - 1);
   std::vector<volatile char *> &main_pattern = patterns[0];
   
-  int i;
+  std::vector<size_t> pattern_indices(0, patterns.size());
+  
+  int interleaved_pattern_idx = 0;
   int count = 0;
-  for(i = 0; i < main_pattern.size() - 1; i += 2) {
-    final_pattern.push_back(main_pattern[i]);
-    final_pattern.push_back(main_pattern[i + 1]);
+  for(; pattern_indices[0] < patterns[0].size(); pattern_indices[0]++) {
+    final_pattern.push_back(patterns[0][pattern_indices[0]]);
 
     if(count++ % distance != 0) {
       continue;
     }
 
-    for(int j = single_pair_per_iter ? random_pattern_dist(gen) : 1; j < patterns.size(); j++) {
-      if(patterns[j].size() <= i) {
-        continue;
-      }
-      final_pattern.push_back(patterns[j][i]);
-      if(patterns[j].size() <= i + 1) {
-        continue;
-      }
-      final_pattern.push_back(patterns[j][i + 1]);
-
-      if(single_pair_per_iter) {
-        break;
+    for(int j = 1; j <= count_per_iter; j++) {
+      size_t pattern_index = random_pattern_dist(gen);
+      for(int cnt = 0; cnt < chunk_size; cnt++) {
+        if(pattern_indices[pattern_index] >= patterns[pattern_index].size()) {
+          pattern_indices[pattern_index] = 0;
+        }
+        size_t aggressor_index = pattern_indices[pattern_index]++;
+        final_pattern.push_back(patterns[pattern_index][aggressor_index]);
       }
     }
-  }
-
-  if(i < main_pattern.size()) {
-    final_pattern.push_back(main_pattern[i]);
   }
 
   return final_pattern;

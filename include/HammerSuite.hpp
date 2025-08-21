@@ -29,8 +29,9 @@ struct Args {
   bool simple_patterns_first_thread = false;
   bool simple_patterns_other_threads = false;
   bool disable_fencing = false;
-  bool interleave_single_pair_only = false;
-  size_t interleaving_distance = 3;
+  size_t interleaving_chunk_size = 1;
+  size_t interleaving_distance = 1;
+  size_t interleaving_patterns = 1;
   bool randomize_each_pattern = false;
   FENCING_STRATEGY fencing_strategy = FENCING_STRATEGY::EARLIEST_POSSIBLE;
   FLUSHING_STRATEGY flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
