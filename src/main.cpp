@@ -77,6 +77,7 @@ bool string_to_bool(std::string str) {
 void print_help() {
   printf("%-40s: runtime in seconds.\n", "-r, --runtime <seconds>");
   printf("%-40s: number of locations.\n", "-l, --locations <locations>");
+  printf("%-40s: number of locations when fuzzing (using -fr).\n", "-fl, --fuzz-locations <locations>");
   printf("%-40s: number of threads/interleaved patterns.\n", "-t, --threads <threads>");
   printf("%-40s: check effective patterns after run (using all other found patterns).\n", "-fc, --fuzz-combined");
   printf("%-40s: check effective patterns after run.\n", "-fr, --fuzz-random");
@@ -102,6 +103,9 @@ Args parse_args(int argc, char* argv[]) {
       i++;
     } else if((strcmp("-l", argv[i]) == 0 || strcmp("--locations", argv[i]) == 0) && i + 1 < argc) {
       args.locations = atoi(argv[i + 1]);
+      i++;
+    } else if((strcmp("-fl", argv[i]) == 0 || strcmp("--fuzz-locations", argv[i]) == 0) && i + 1 < argc) {
+      args.fuzz_locations = atoi(argv[i + 1]);
       i++;
     } else if((strcmp("-t", argv[i]) == 0 || strcmp("--threads", argv[i]) == 0) && i + 1 < argc) {
       args.threads = atoi(argv[i + 1]);

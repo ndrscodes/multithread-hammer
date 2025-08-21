@@ -17,7 +17,8 @@
 
 struct Args {
   uint64_t runtime_limit = 3600;
-  uint16_t locations = 3;
+  uint16_t locations = 1;
+  size_t fuzz_locations = 3;
   uint16_t threads = 1;
   bool test_effective_patterns_random = false;
   bool test_effective_patterns_combined = false;

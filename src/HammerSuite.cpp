@@ -483,7 +483,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
       if(!args.test_effective_patterns_random) {
         continue;
       }
-      //check from 1 to 6 threads
+      //check from 1 to 8 threads
       for(int threads = 1; threads <= 8; threads++) {
         FuzzReport fuzzing_run_report;
         std::vector<MappedPattern> patterns;
@@ -518,7 +518,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
 
         printf("created %lu patterns for analysis run.\n", patterns.size());
 
-        std::vector<LocationReport> final_reports = fuzz_location(patterns, 3, args);
+        std::vector<LocationReport> final_reports = fuzz_location(patterns, args.fuzz_locations, args);
         
         for(int j = 0; j < final_reports.size(); j++) {
           fuzzing_run_report.add_report(final_reports[j]);
