@@ -201,7 +201,7 @@ std::vector<volatile char *> PatternAddressMapper::interleave(
   std::uniform_int_distribution<> random_pattern_dist(1, patterns.size() - 1);
   std::vector<volatile char *> &main_pattern = patterns[0];
   
-  std::vector<size_t> pattern_indices(0, patterns.size());
+  std::vector<size_t> pattern_indices(patterns.size(), 0);
   
   int interleaved_pattern_idx = 0;
   int count = 0;
