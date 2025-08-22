@@ -221,6 +221,10 @@ std::vector<volatile char *> PatternAddressMapper::interleave(
           pattern_indices[pattern_index] = 0;
         }
         size_t aggressor_index = pattern_indices[pattern_index]++;
+        if(patterns[pattern_index][aggressor_index] == nullptr && final_pattern.back() == nullptr) {
+          cnt--;
+          continue;
+        }
         final_pattern.push_back(patterns[pattern_index][aggressor_index]);
       }
     }
