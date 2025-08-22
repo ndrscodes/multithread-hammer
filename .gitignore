@@ -35,5 +35,6 @@
 
 build/*
 !build/run.sh
+!build/interleave-run.sh
 
 compile_commands.json
