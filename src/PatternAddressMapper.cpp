@@ -205,7 +205,7 @@ std::vector<volatile char *> PatternAddressMapper::interleave(
   
   int interleaved_pattern_idx = 0;
   int count = 0;
-  for(; pattern_indices[0] < patterns[0].size(); pattern_indices[0]++) {
+  while(pattern_indices[0] < patterns[0].size()) {
     for(int c = 0; c < chunk_size; c++) {
       if(pattern_indices[0] >= patterns[0].size()) {
         break;
