@@ -206,7 +206,9 @@ std::vector<volatile char *> PatternAddressMapper::interleave(
   int interleaved_pattern_idx = 0;
   int count = 0;
   for(; pattern_indices[0] < patterns[0].size(); pattern_indices[0]++) {
-    final_pattern.push_back(patterns[0][pattern_indices[0]]);
+    for(int c = 0; c < chunk_size; c++) {
+      final_pattern.push_back(patterns[0][pattern_indices[0]]);
+    }
 
     if(count++ % distance != 0) {
       continue;
@@ -222,6 +224,13 @@ std::vector<volatile char *> PatternAddressMapper::interleave(
         final_pattern.push_back(patterns[pattern_index][aggressor_index]);
       }
     }
+  }
+
+  printf("built interleaved pattern:\n");
+
+  int print_size = std::min(final_pattern.size() - 1, (size_t)40);
+  for(int i = 0; i < print_size; i++) {
+    printf("%s, ", DRAMAddr((void *)final_pattern[i]).to_string_compact().c_str());
   }
 
   return final_pattern;
