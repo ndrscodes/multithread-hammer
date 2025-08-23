@@ -18,6 +18,7 @@ elif [ ! -z $(ls -A $DIR) ]; then
 fi
 
 RUNTIME=2700
+SEED=1234
 
 function run {
   local IDENT=$1
@@ -29,7 +30,7 @@ function run {
 
   echo "-f -r $RUNTIME $@" >> "$TARGET/flags.txt"
   
-  ./multithread_hammer -fr -fc -r $RUNTIME $@ | tee "main.log"
+  ./multithread_hammer -s $SEED -fr -fc -r $RUNTIME $@ | tee "main.log"
 
   RC=$?
   
