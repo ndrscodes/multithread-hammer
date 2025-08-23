@@ -93,6 +93,7 @@ void print_help() {
   printf("%-40s: the flushing strategy (earliest, latest).\n", "--flushing-strategy <type>");
   printf("%-40s: the fencing strategy (earliest, latest, omit).\n", "--fencing-strategy <type>");
   printf("%-40s: column randomization style (all, aggressor, none).\n", "-rs, --randomization-style");
+  printf("%-40s: compensate for the difference in access counts when interleaving.\n", "--compensate");
 }
 
 Args parse_args(int argc, char* argv[]) {
@@ -119,6 +120,8 @@ Args parse_args(int argc, char* argv[]) {
       i++;
     } else if(strcmp("-i", argv[i]) == 0 || strcmp("--interleaved", argv[i]) == 0) {
       args.interleaved = true;
+    } else if(strcmp("--compensate", argv[i]) == 0) {
+      args.compensate_access_count = true;
     } else if(strcmp("--fence-type", argv[i]) == 0 && i + 1 < argc) {
       if(strcmp("lfence", argv[i + 1]) == 0) {
         args.fence_type = FENCE_TYPE::LFENCE;

@@ -49,6 +49,16 @@ void HammerSuite::set_seed(uint64_t seed){
   engine = std::mt19937(seed);
 }
 
+size_t count_true_acts(std::vector<volatile char *> &pattern) {
+  size_t count = 0;
+  for(auto& ptr : pattern) {
+    if(ptr != nullptr) {
+      count++;
+    }
+  }
+  return count;
+}
+
 LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, Args &args) {
   std::vector<std::thread> threads(patterns.size());
   std::vector<LocationReport> report;
@@ -81,6 +91,19 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
       args.interleaving_distance,
       args.interleaving_patterns
     );
+
+    if(args.compensate_access_count) {
+      size_t final_pattern_true_acts = count_true_acts(final_pattern);
+      size_t main_pattern_true_acts = count_true_acts(exported_patterns[0]);
+
+      size_t diff = final_pattern_true_acts - main_pattern_true_acts;
+      size_t original_repeats = patterns[0].params.get_total_acts_pattern() / main_pattern_true_acts;
+      patterns[0].params.set_total_acts_pattern(final_pattern_true_acts * original_repeats);
+      printf("the original pattern created %lu activations per iteration, while the interleaved pattern generated %lu.\n", 
+             main_pattern_true_acts, final_pattern_true_acts);
+      printf("to compensate for %lu accesses to different banks, we are setting the new act count for this pattern to %d.\n", 
+             diff, patterns[0].params.get_total_acts_pattern());
+    }
 
     DRAMAddr first_addr(0, 0, 0);
     for(auto ptr : exported_patterns[0]) {

@@ -38,6 +38,7 @@ struct Args {
   FLUSHING_STRATEGY flushing_strategy = FLUSHING_STRATEGY::EARLIEST_POSSIBLE;
   size_t thread_start_id = 0;
   ColumnRandomizationStyle randomization_style = ColumnRandomizationStyle::NONE;
+  bool compensate_access_count = false;
 };
 
 class HammerSuite {
