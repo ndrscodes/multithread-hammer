@@ -103,7 +103,7 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
         printf("the original pattern created %lu activations per iteration, while the interleaved pattern generated %lu.\n", 
                main_pattern_true_acts, final_pattern_true_acts);
         printf("to compensate for %lu accesses to different banks, we are setting the new act count for this pattern to %d.\n", 
-               diff, patterns[0].params.get_total_acts_pattern());
+               diff, patterns[0].params.get_hammering_total_num_activations());
       }
     }
 
