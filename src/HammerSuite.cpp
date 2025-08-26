@@ -36,7 +36,6 @@
 #include "CsvExporter.hpp"
 #define SYNC_TO_REF 0
 
-size_t ACTIVATIONS = 6000000;
 int start_thread = 6;
 const bool reproducibility_mode = false;
 
@@ -92,13 +91,16 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
       args.interleaving_patterns
     );
 
+    //we copy here so we can set it back later, else we would constantly be overwriting our own act count.
+    int original_acts = patterns[0].params.get_hammering_total_num_activations();
     if(args.compensate_access_count) {
+
       size_t final_pattern_true_acts = count_true_acts(final_pattern);
       size_t main_pattern_true_acts = count_true_acts(exported_patterns[0]);
 
       size_t diff = final_pattern_true_acts - main_pattern_true_acts;
       if(diff != 0) {
-        size_t original_repeats = patterns[0].params.get_hammering_total_num_activations() / main_pattern_true_acts;
+        size_t original_repeats = original_acts / main_pattern_true_acts;
         patterns[0].params.set_hammering_total_num_activations(final_pattern_true_acts * original_repeats);
         printf("the original pattern created %lu activations per iteration, while the interleaved pattern generated %lu.\n", 
                main_pattern_true_acts, final_pattern_true_acts);
@@ -139,6 +141,9 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
       starts[0],
       ends[0]
     );
+
+    //set it back so it can be calculated again in the following runs
+    patterns[0].params.set_hammering_total_num_activations(original_acts);
 
   } else {
 
