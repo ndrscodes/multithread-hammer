@@ -142,6 +142,11 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
       ends[0]
     );
 
+    for(int i = 1; i < starts.size(); i++) {
+      starts[i] = starts[0];
+      ends[i] = ends[0];
+    }
+
     //set it back so it can be calculated again in the following runs
     patterns[0].params.set_hammering_total_num_activations(original_acts);
 
