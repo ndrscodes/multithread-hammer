@@ -4,10 +4,12 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <fcntl.h>
 #include <string>
 #include <sys/mman.h>
 #include <unistd.h>
+#define PAGEMAP_LENGTH 8
 
 const std::string F_NAME = "map_ident.bin";
 
@@ -17,20 +19,47 @@ uint64_t Memory::get_pfn(uint64_t entry) {
 }
 
 //----------------------------------------------------------
-uint64_t Memory::get_physical_address(uint64_t v_addr) 
+uint64_t Memory::get_physical_address(uint64_t vaddr) 
 {
-    uint64_t entry; 
-    uint64_t offset = (v_addr/4096) * sizeof(entry);
-    uint64_t pfn; 
-    int fd = open("/proc/self/pagemap", O_RDONLY);
-    assert(fd >= 0);
-    int bytes_read = pread(fd, &entry, sizeof(entry), offset);
-    close(fd);
-    assert(bytes_read == 8);
-    assert(entry & (1ULL << 63));
-    pfn = get_pfn(entry);
-    assert(pfn != 0);
-    return (pfn*4096) | (v_addr & 4095); 
+  /* Credits to Balakumaran Kannan.
+   * URL: https://eastrivervillage.com/Virtual-memory-to-Physical-memory/
+   */
+    size_t pid;
+    size_t paddr = 0;
+    size_t offset;
+
+    int page_size;
+    int page_shift = -1;
+
+    char filename[1024] = {0};
+
+    page_size = getpagesize();
+
+    pid = getpid();
+    sprintf(filename, "/proc/%ld/pagemap", pid);
+
+    FILE *pagemap = fopen(filename, "rb");
+    if (!pagemap) {
+      perror("can't open file. ");
+      goto err;
+    }
+
+    offset = (vaddr / page_size) * PAGEMAP_LENGTH;
+    assert(fseek(pagemap, (long)offset, SEEK_SET) == 0);
+    assert(fread(&paddr, 1, (PAGEMAP_LENGTH-1), pagemap) == (PAGEMAP_LENGTH-1));
+
+    paddr = paddr & 0x7fffffffffffff;
+    offset = vaddr % page_size;
+
+    /* PAGE_SIZE = 1U << PAGE_SHIFT */
+    while (!((1UL << ++page_shift) & page_size));
+
+    paddr = (size_t)((size_t)paddr << page_shift) + offset;
+    
+    err:
+    fclose(pagemap);
+
+    return paddr;
 }
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
@@ -68,16 +97,25 @@ void Memory::allocate_memory(size_t mem_size) {
   if(access(F_NAME.c_str(), F_OK) == 0) {
     FILE *f = fopen(F_NAME.c_str(), "wb");
     assert(f != nullptr);
-    assert(fwrite(reinterpret_cast<const char *>(phys_addr), sizeof(uint64_t), 1, f) == 1);
+
+    uint8_t data[sizeof(uint64_t)];
+    memcpy(data, &phys_addr, sizeof(uint64_t));
+    
+    assert(fwrite(data, sizeof(uint64_t), 1, f) == 1);
     fclose(f);
     printf("created mapping identification file for physical address %lx.\n", phys_addr);
   } else {
-    FILE *f = fopen(F_NAME.c_str(), "r");
+    FILE *f = fopen(F_NAME.c_str(), "rb");
     assert(f != nullptr);
-    char buf[sizeof(uint64_t)];
-    assert(fread(buf, sizeof(uint64_t), 1, f) == 1);
+    
+    uint8_t data[sizeof(uint64_t)];
+    assert(fread(data, sizeof(uint64_t), 1, f) == 1);
+    uint64_t addr;
+    memcpy(&addr, data, sizeof(uint64_t));
+    
     fclose(f);
-    assert(reinterpret_cast<uint64_t>(buf) == phys_addr);
+
+    assert(addr == phys_addr);
     printf("start addresses (%lx) are equal, meaning we are mapped to the same page! hooray!\n", phys_addr);
   }
 
