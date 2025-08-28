@@ -64,7 +64,7 @@ void Memory::allocate_memory(size_t mem_size) {
     sleep(10);
   }
 
-  uint64_t phys_addr = get_phys_addr((uint64_t)start_address);
+  uint64_t phys_addr = get_physical_address((uint64_t)start_address);
   if(access(F_NAME.c_str(), F_OK) == 0) {
     FILE *f = fopen(F_NAME.c_str(), "wb");
     assert(f != nullptr);
