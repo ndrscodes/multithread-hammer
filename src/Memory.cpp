@@ -3,7 +3,35 @@
 
 #include <cassert>
 #include <cstdint>
+#include <cstdio>
+#include <fcntl.h>
+#include <string>
 #include <sys/mman.h>
+#include <unistd.h>
+
+const std::string F_NAME = "map_ident.bin";
+
+//----------------------------------------------------------
+uint64_t get_pfn(uint64_t entry) {
+    return ((entry) & 0x3fffffffffffff);
+}
+
+//----------------------------------------------------------
+uint64_t get_phys_addr(uint64_t v_addr) 
+{
+    uint64_t entry; 
+    uint64_t offset = (v_addr/4096) * sizeof(entry);
+    uint64_t pfn; 
+    int fd = open("/proc/self/pagemap", O_RDONLY);
+    assert(fd >= 0);
+    int bytes_read = pread(fd, &entry, sizeof(entry), offset);
+    close(fd);
+    assert(bytes_read == 8);
+    assert(entry & (1ULL << 63));
+    pfn = get_pfn(entry);
+    assert(pfn != 0);
+    return (pfn*4096) | (v_addr & 4095); 
+}
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
 void Memory::allocate_memory(size_t mem_size) {
@@ -34,6 +62,23 @@ void Memory::allocate_memory(size_t mem_size) {
     // for khugepaged
     Logger::log_info("Waiting for khugepaged.");
     sleep(10);
+  }
+
+  uint64_t phys_addr = get_phys_addr((uint64_t)start_address);
+  if(access(F_NAME.c_str(), F_OK) == 0) {
+    FILE *f = fopen(F_NAME.c_str(), "wb");
+    assert(f != nullptr);
+    assert(fwrite(reinterpret_cast<const char *>(phys_addr), sizeof(uint64_t), 1, f) == 1);
+    fclose(f);
+    printf("created mapping identification file for physical address %lx.\n", phys_addr);
+  } else {
+    FILE *f = fopen(F_NAME.c_str(), "r");
+    assert(f != nullptr);
+    char buf[sizeof(uint64_t)];
+    assert(fread(buf, sizeof(uint64_t), 1, f) == 1);
+    fclose(f);
+    assert(reinterpret_cast<uint64_t>(buf) == phys_addr);
+    printf("start addresses (%lx) are equal, meaning we are mapped to the same page! hooray!\n", phys_addr);
   }
 
   // initialize memory with random but reproducible sequence of numbers

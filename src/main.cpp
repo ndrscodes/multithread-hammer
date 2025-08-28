@@ -208,6 +208,8 @@ int main(int argc, char* argv[]) {
 
   Args args = parse_args(argc, argv);
 
+
+
   Memory alloc(true);
   if(args.seed > 0) {
     alloc.set_seed(args.seed);
