@@ -13,94 +13,53 @@
 
 const std::string F_NAME = "map_ident.bin";
 
-const uint8_t MAP_ENTRY_SIZE = 8; //a complete page table entry has a length of 64 Bit (8 bytes)
-const uint64_t PAGE_OFFSET_BITS = 12;
-const uint64_t PFN_MASK = (1ul << 55) - 1ul; //we are only interested in the first 55 bits
-const char* FLAG_MAP[27] = {
-  "KPF_LOCKED",
-  "KPF_ERROR",
-  "KPF_REFERENCED",
-  "KPF_UPTODATE",
-  "KPF_DIRTY",
-  "KPF_LRU",
-  "KPF_ACTIVE",
-  "KPF_SLAB",
-  "KPF_WRITEBACK",
-  "KPF_RECLAIM",
-  "KPF_BUDDY",
-  "KPF_MMAP",
-  "KPF_ANON",
-  "KPF_SWAPCACHE",
-  "KPF_SWAPBACKED",
-  "KPF_COMPOUND_HEAD",
-  "KPF_COMPOUND_TAIL",
-  "KPF_HUGE",
-  "KPF_UNEVICTABLE",
-  "KPF_HWPOISON",
-  "KPF_NOPAGE",
-  "KPF_KSM",
-  "KPF_THP",
-  "KPF_BALLOON",
-  "KPF_ZERO_PAGE",
-  "KPF_IDLE",
-  "KPF_PGTABLE"
-};
-
-uint64_t Memory::get_pfn(uint64_t page) {
-  FILE *pmap = fopen("/proc/self/pagemap", "rb");
-  assert(pmap != NULL);
-
-  uint64_t offset = (page / getpagesize()) * MAP_ENTRY_SIZE;
-  assert(fseek(pmap, offset, SEEK_SET) == 0);
-
-  uint64_t test;
-  assert(fread(&test, MAP_ENTRY_SIZE, 1, pmap) == 1);
-
-  uint64_t pfn = test;
-  pfn &= PFN_MASK;
-  fclose(pmap);
-
-  return pfn;
-}
-
-u_int64_t get_flags(uint64_t pfn) {
-  FILE *flagd = fopen("/proc/kpageflags", "rb");
-  assert(flagd != NULL);
-  assert(fseek(flagd, pfn * MAP_ENTRY_SIZE, SEEK_SET) == 0);
-
-  uint64_t flags;
-  assert(fread(&flags, MAP_ENTRY_SIZE, 1, flagd) == 1);
-
-  return flags;
-}
-
-
-/*******************************************************************************
- * printFlags takes the flags the apply to a PFN (returned by
- * getFlagsForPhysicalAddress() and prints them in human-readable form.
- *
- * @param flags: Flags (from /proc/kpageflags)
- ******************************************************************************/
-void print_flags(u_int64_t flags) {
-  if(flags == UINT64_MAX) {
-    printf("Invalid flags. Seems like something broke when parsing the flags.");
-  }
-  for(int i = 0; i < 27; i++) {
-    if(flags & (0x1 << i)) {
-      printf("%s\n", FLAG_MAP[i]);
-    }
-  }
+//----------------------------------------------------------
+uint64_t Memory::get_pfn(uint64_t entry) {
+    return ((entry) & 0x3fffffffffffff);
 }
 
 //----------------------------------------------------------
 uint64_t Memory::get_physical_address(uint64_t vaddr) 
 {
-  uint64_t pfn = get_pfn(vaddr);
-  printf("pfn: %lx\n", pfn);
-  uint64_t flags = get_flags(pfn);
-  printf("flags: %lx\n", flags);
-  print_flags(flags);
-  return pfn;
+  /* Credits to Balakumaran Kannan.
+   * URL: https://eastrivervillage.com/Virtual-memory-to-Physical-memory/
+   */
+    size_t pid;
+    size_t paddr = 0;
+    size_t offset;
+
+    int page_size;
+    int page_shift = -1;
+
+    char filename[1024] = {0};
+
+    page_size = getpagesize();
+
+    pid = getpid();
+    sprintf(filename, "/proc/%ld/pagemap", pid);
+
+    FILE *pagemap = fopen(filename, "rb");
+    if (!pagemap) {
+      perror("can't open file. ");
+      goto err;
+    }
+
+    offset = (vaddr / page_size) * PAGEMAP_LENGTH;
+    assert(fseek(pagemap, (long)offset, SEEK_SET) == 0);
+    assert(fread(&paddr, 1, (PAGEMAP_LENGTH-1), pagemap) == (PAGEMAP_LENGTH-1));
+
+    paddr = paddr & 0x7fffffffffffff;
+    offset = vaddr % page_size;
+
+    /* PAGE_SIZE = 1U << PAGE_SHIFT */
+    while (!((1UL << ++page_shift) & page_size));
+
+    paddr = (size_t)((size_t)paddr << page_shift) + offset;
+    
+    err:
+    fclose(pagemap);
+
+    return paddr;
 }
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
