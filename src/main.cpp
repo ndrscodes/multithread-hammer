@@ -94,6 +94,7 @@ void print_help() {
   printf("%-40s: the fencing strategy (earliest, latest, omit).\n", "--fencing-strategy <type>");
   printf("%-40s: column randomization style (all, aggressor, none).\n", "-rs, --randomization-style");
   printf("%-40s: compensate for the difference in access counts when interleaving.\n", "--compensate");
+  printf("%-40s: number of aggressors to use when building a simple pattern.\n", "-sa, --simple-num-aggs <aggs>");
 }
 
 Args parse_args(int argc, char* argv[]) {
@@ -166,6 +167,9 @@ Args parse_args(int argc, char* argv[]) {
       i++;
     } else if((strcmp("--interleaving-patterns", argv[i]) == 0 || strcmp("-ip", argv[i]) == 0) && i + 1 < argc) {
       args.interleaving_patterns = atol(argv[i + 1]);
+      i++;
+    } else if((strcmp("--simple-num-aggs", argv[i]) == 0 || strcmp("-sa", argv[i]) == 0) && i + 1 < argc) {
+      args.simple_num_aggs = atol(argv[i + 1]);
       i++;
     } else if(strcmp("--randomize-each", argv[i]) == 0) {
       args.randomize_each_pattern = true;

@@ -39,6 +39,7 @@ struct Args {
   size_t thread_start_id = 0;
   ColumnRandomizationStyle randomization_style = ColumnRandomizationStyle::NONE;
   bool compensate_access_count = false;
+  int simple_num_aggs = -1;
 };
 
 class HammerSuite {
