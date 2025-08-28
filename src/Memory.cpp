@@ -93,8 +93,12 @@ void Memory::allocate_memory(size_t mem_size) {
     sleep(10);
   }
 
+  // initialize memory with random but reproducible sequence of numbers
+  // this needs to happen BEFORE calculating the physical address. Else, the OS would not map the page and the PFN will be 0.
+  initialize(DATA_PATTERN::RANDOM);
+
   uint64_t phys_addr = get_physical_address((uint64_t)start_address);
-  if(access(F_NAME.c_str(), F_OK) == 0) {
+  if(access(F_NAME.c_str(), F_OK) != 0) {
     FILE *f = fopen(F_NAME.c_str(), "wb");
     assert(f != nullptr);
 
@@ -118,9 +122,6 @@ void Memory::allocate_memory(size_t mem_size) {
     assert(addr == phys_addr);
     printf("start addresses (%lx) are equal, meaning we are mapped to the same page! hooray!\n", phys_addr);
   }
-
-  // initialize memory with random but reproducible sequence of numbers
-  initialize(DATA_PATTERN::RANDOM);
 }
 
 void Memory::set_seed(uint64_t seed) {
