@@ -12,12 +12,12 @@
 const std::string F_NAME = "map_ident.bin";
 
 //----------------------------------------------------------
-uint64_t get_pfn(uint64_t entry) {
+uint64_t Memory::get_pfn(uint64_t entry) {
     return ((entry) & 0x3fffffffffffff);
 }
 
 //----------------------------------------------------------
-uint64_t get_phys_addr(uint64_t v_addr) 
+uint64_t Memory::get_physical_address(uint64_t v_addr) 
 {
     uint64_t entry; 
     uint64_t offset = (v_addr/4096) * sizeof(entry);

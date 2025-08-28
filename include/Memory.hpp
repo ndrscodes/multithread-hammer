@@ -37,7 +37,11 @@ class Memory {
   size_t check_memory_internal(PatternAddressMapper &mapping, const volatile char *start,
                                const volatile char *end, bool reproducibility_mode, bool verbose);
 
- public:
+  static uint64_t get_pfn(uint64_t v_addr); 
+ 
+public:
+
+  static uint64_t get_physical_address(uint64_t v_addr); 
 
   // the flipped bits detected during the last call to check_memory
   std::vector<BitFlip> flipped_bits;
