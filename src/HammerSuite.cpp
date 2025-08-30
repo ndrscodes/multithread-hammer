@@ -235,7 +235,6 @@ LocationReport HammerSuite::fuzz_pattern(std::vector<MappedPattern> &patterns, A
 
 std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<MappedPattern> &patterns, size_t locations, Args &args) {
   std::vector<LocationReport> location_reports(locations);
-  std::uniform_int_distribution row_shift_dist(1, 64);
 
   if(locations == 0) {
     printf("location parameter must be non-zero.\n");
@@ -249,7 +248,7 @@ std::vector<LocationReport> HammerSuite::fuzz_location(std::vector<MappedPattern
 
   for(int i = 0; i < locations; i++) {
     for(int j = 0; j < patterns.size(); j++) {
-      patterns[j].mapper.shift_mapping(row_shift_dist(engine), {});
+      patterns[j].mapper.shift_mapping(14, {});
     }
     location_reports[i + 1] = fuzz_pattern(patterns, args);
   }
