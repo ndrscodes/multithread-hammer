@@ -505,6 +505,7 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
   std::vector<FuzzReport> fuzz_reports;
   std::string path("bit_flips_search.csv");
   std::vector<FuzzReport> effective_reports = filter_and_analyze_flips(patterns, path);
+  std::vector<FuzzReport> comparison_reports;
 
   std::vector<MappedPattern> effective_patterns;
   for(auto& report : effective_reports) {
@@ -518,6 +519,18 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
       if(!args.test_effective_patterns_random) {
         continue;
       }
+
+      FuzzReport single_report;
+      std::vector<MappedPattern> cloned_patterns;
+      for(int i = 0; i < location_report.get_reports().size(); i++) {
+        cloned_patterns.push_back(location_report.get_reports()[i].pattern);
+      }
+      std::vector<LocationReport> location_reports = fuzz_location(cloned_patterns, args.fuzz_locations, args);
+      for(int i = 0; i < location_reports.size(); i++) {
+        single_report.add_report(location_reports[i]);
+      }
+      comparison_reports.push_back(single_report);
+
       //check from 1 to 8 threads
       for(int threads = 1; threads <= 8; threads++) {
         FuzzReport fuzzing_run_report;
@@ -568,6 +581,8 @@ void HammerSuite::check_effective_patterns(std::vector<FuzzReport> &patterns, Ar
   }
   path = std::string("bit_flips_random_analysis.csv");
   filter_and_analyze_flips(fuzz_reports, path);
+  path = std::string("bit_flips_random_baseline.csv");
+  filter_and_analyze_flips(comparison_reports, path);
 
   if(effective_patterns.size() == 0 || !args.test_effective_patterns_combined) {
     return;
